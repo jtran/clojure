@@ -10,9 +10,10 @@
 
 package clojure.lang;
 
+import java.io.Serializable;
 import java.util.*;
 
-public abstract class ASeq extends Obj implements ISeq, List, Streamable{
+public abstract class ASeq extends Obj implements ISeq, List, Serializable {
 transient int _hash = -1;
 
 public String toString(){
@@ -46,7 +47,7 @@ public boolean equiv(Object obj){
 }
 
 public boolean equals(Object obj){
-
+	if(this == obj) return true;
 	if(!(obj instanceof Sequential || obj instanceof List))
 		return false;
 	ISeq ms = RT.seq(obj);
@@ -202,30 +203,6 @@ public Iterator iterator(){
 	return new SeqIterator(this);
 }
 
-
-
-public Stream stream() throws Exception {
-    return new Stream(new Src(this));
-}
-
-static class Src extends AFn{
-    ISeq s;
-
-    public Src(ISeq s) {
-        this.s = s;
-    }
-
-	public Object invoke() throws Exception {
-		ISeq sq = RT.seq(s);
-        if(sq != null)
-            {
-            Object ret = sq.first();
-            s = sq.more();
-            return ret;
-            }
-        return RT.EOS;
-    }
-}
 
 
 //////////// List stuff /////////////////

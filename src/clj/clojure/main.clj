@@ -8,9 +8,13 @@
 
 ;; Originally contributed by Stephen C. Gilardi
 
-(ns clojure.main
+(ns ^{:doc "Top-level main function for Clojure REPL and scripts."
+       :author "Stephen C. Gilardi and Rich Hickey"}
+  clojure.main
+  (:refer-clojure :exclude [with-bindings])
   (:import (clojure.lang Compiler Compiler$CompilerException
-                         LineNumberingPushbackReader RT)))
+                         LineNumberingPushbackReader RT))
+  (:use [clojure.repl :only (demunge root-cause stack-element-str)]))
 
 (declare main)
 
@@ -69,7 +73,7 @@
      (= c (int \newline)) :line-start
      (= c -1) :stream-end
      (= c (int \;)) (do (.readLine s) :line-start)
-     (or (Character/isWhitespace c) (= c (int \,))) (recur (.read s))
+     (or (Character/isWhitespace (char c)) (= c (int \,))) (recur (.read s))
      :else (do (.unread s c) :body))))
 
 (defn repl-read
@@ -90,27 +94,21 @@
         (skip-if-eol *in*)
         input)))
 
-(defn- root-cause
-  "Returns the initial cause of an exception or error by peeling off all of
-  its wrappers"
-  [throwable]
-  (loop [cause throwable]
-    (if-let [cause (.getCause cause)]
-      (recur cause)
-      cause)))
-
 (defn repl-exception
-  "Returns CompilerExceptions in tact, but only the root cause of other
-  throwables"
+  "Returns the root cause of throwables"
   [throwable]
-  (if (instance? Compiler$CompilerException throwable)
-    throwable
-    (root-cause throwable)))
+  (root-cause throwable))
 
 (defn repl-caught
   "Default :caught hook for repl"
   [e]
-  (.println *err* (repl-exception e)))
+  (let [ex (repl-exception e)
+        el (aget (.getStackTrace ex) 0)]
+    (binding [*out* *err*]
+      (println (str (-> ex class .getSimpleName)
+                    " " (.getMessage ex) " "
+                    (when-not (instance? clojure.lang.Compiler$CompilerException ex)
+                      (str " " (stack-element-str el))))))))
 
 (defn repl
   "Generic, reusable, read-eval-print loop. By default, reads from *in*,
@@ -161,7 +159,7 @@
   (let [{:keys [init need-prompt prompt flush read eval print caught]
          :or {init        #()
               need-prompt (if (instance? LineNumberingPushbackReader *in*)
-                            #(.atLineStart *in*)
+                            #(.atLineStart ^LineNumberingPushbackReader *in*)
                             #(identity true))
               prompt      repl-prompt
               flush       flush
@@ -191,10 +189,18 @@
       (catch Throwable e
         (caught e)
         (set! *e e)))
+     (use '[clojure.repl :only (source apropos dir pst)])
+     (use '[clojure.java.javadoc :only (javadoc)])
+     (use '[clojure.pprint :only (pp pprint)])
      (prompt)
      (flush)
      (loop []
-       (when-not (= (read-eval-print) request-exit)
+       (when-not 
+       	 (try (= (read-eval-print) request-exit)
+	  (catch Throwable e
+	   (caught e)
+	   (set! *e e)
+	   nil))
          (when (need-prompt)
            (prompt)
            (flush))
@@ -203,7 +209,7 @@
 (defn load-script
   "Loads Clojure source from a file or resource given its path. Paths
   beginning with @ or @/ are considered relative to classpath."
-  [path]
+  [^String path]
   (if (.startsWith path "@")
     (RT/loadResourceScript
      (.substring path (if (.startsWith path "@/") 2 1)))
@@ -217,14 +223,14 @@
 (defn- eval-opt
   "Evals expressions in str, prints each non-nil result using prn"
   [str]
-  (let [eof (Object.)]
-    (with-in-str str
-      (loop [input (read *in* false eof)]
+  (let [eof (Object.)
+        reader (LineNumberingPushbackReader. (java.io.StringReader. str))]
+      (loop [input (read reader false eof)]
         (when-not (= input eof)
           (let [value (eval input)]
             (when-not (nil? value)
               (prn value))
-            (recur (read *in* false eof))))))))
+            (recur (read reader false eof)))))))
 
 (defn- init-dispatch
   "Returns the handler associated with an init opt"
@@ -241,6 +247,14 @@
   (set! *command-line-args* args)
   (doseq [[opt arg] inits]
     ((init-dispatch opt) arg)))
+
+(defn- main-opt
+  "Call the -main function from a namespace with string arguments from
+  the command line."
+  [[_ main-ns & args] inits]
+  (with-bindings
+    (initialize args inits)
+    (apply (ns-resolve (doto (symbol main-ns) require) '-main) args)))
 
 (defn- repl-opt
   "Start a repl with args and inits. Print greeting if no eval options were
@@ -278,6 +292,8 @@
   (or
    ({"-r"     repl-opt
      "--repl" repl-opt
+     "-m"     main-opt
+     "--main" main-opt
      nil      null-opt
      "-h"     help-opt
      "--help" help-opt
@@ -288,6 +304,9 @@
   "Called by the clojure.lang.Repl.main stub to run a repl with args
   specified the old way"
   [args]
+  (println "WARNING: clojure.lang.Repl is deprecated.
+Instead, use clojure.main like this:
+java -cp clojure.jar clojure.main -i init.clj -r args...")
   (let [[inits [sep & args]] (split-with (complement #{"--"}) args)]
     (repl-opt (concat ["-r"] args) (map vector (repeat "-i") inits))))
 
@@ -295,6 +314,9 @@
   "Called by the clojure.lang.Script.main stub to run a script with args
   specified the old way"
   [args]
+  (println "WARNING: clojure.lang.Script is deprecated.
+Instead, use clojure.main like this:
+java -cp clojure.jar clojure.main -i init.clj script.clj args...")
   (let [[inits [sep & args]] (split-with (complement #{"--"}) args)]
     (null-opt args (map vector (repeat "-i") inits))))
 
@@ -304,14 +326,15 @@
   With no options or args, runs an interactive Read-Eval-Print Loop
 
   init options:
-    -i, --init path   Load a file or resource
-    -e, --eval string Evaluate expressions in string; print non-nil values
+    -i, --init path     Load a file or resource
+    -e, --eval string   Evaluate expressions in string; print non-nil values
 
   main options:
-    -r, --repl        Run a repl
-    path              Run a script from from a file or resource
-    -                 Run a script from standard input
-    -h, -?, --help    Print this help message and exit
+    -m, --main ns-name  Call the -main function from a namespace with args
+    -r, --repl          Run a repl
+    path                Run a script from from a file or resource
+    -                   Run a script from standard input
+    -h, -?, --help      Print this help message and exit
 
   operation:
 
@@ -320,7 +343,7 @@
     - Binds *command-line-args* to a seq of strings containing command line
       args that appear after any main option
     - Runs all init options in order
-    - Runs a repl or script if requested
+    - Calls a -main function or runs a repl or script if requested
 
   The init options may be repeated and mixed freely, but must appear before
   any main option. The appearance of any eval option before running a repl

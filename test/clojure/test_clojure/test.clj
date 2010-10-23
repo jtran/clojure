@@ -36,7 +36,7 @@
   (is (= 3 (+ 2 2)) "Should fail"))
 
 (deftest can-test-instance
-  (is (instance? Integer (+ 2 2)) "Should pass")
+  (is (instance? Long (+ 2 2)) "Should pass")
   (is (instance? Float (+ 1 1)) "Should fail"))
 
 (deftest can-test-thrown
@@ -72,14 +72,16 @@
   (is (re-find #"ab" "abbabba") "Should pass")
   (is (re-find #"cd" "abbabba") "Should fail"))
 
+(deftest #^{:has-meta true} can-add-metadata-to-tests
+  (is (:has-meta (meta #'can-add-metadata-to-tests)) "Should pass"))
 
 ;; still have to declare the symbol before testing unbound symbols
-(declare does-not-exist) 
+(declare does-not-exist)
 
-(deftest can-test-unbound-symbol
+#_(deftest can-test-unbound-symbol
   (is (= nil does-not-exist) "Should error"))
 
-(deftest can-test-unbound-function
+#_(deftest can-test-unbound-function
   (is (does-not-exist) "Should error"))
 
 
@@ -87,7 +89,7 @@
 ;; compares the event with the message, then calls the original
 ;; 'report' with modified arguments.
 
-(declare original-report)
+(declare ^:dynamic original-report)
 
 (defn custom-report [data]
   (let [event (:type data)

@@ -13,16 +13,16 @@
 package clojure.lang;
 
 public class StringSeq extends ASeq implements IndexedSeq{
-final String s;
-final int i;
+public final CharSequence s;
+public final int i;
 
-static public StringSeq create(String s){
+static public StringSeq create(CharSequence s){
 	if(s.length() == 0)
 		return null;
 	return new StringSeq(null, s, 0);
 }
 
-StringSeq(IPersistentMap meta, String s, int i){
+StringSeq(IPersistentMap meta, CharSequence s, int i){
 	super(meta);
 	this.s = s;
 	this.i = i;
@@ -46,5 +46,9 @@ public ISeq next(){
 
 public int index(){
 	return i;
+}
+
+public int count(){
+	return s.length() - i;
 }
 }

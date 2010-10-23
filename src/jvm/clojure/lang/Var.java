@@ -12,37 +12,65 @@
 
 package clojure.lang;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public final class Var extends ARef implements IFn, IRef, Settable{
 
+static class TBox{
+
+volatile Object val;
+final Thread thread;
+
+public TBox(Thread t, Object val){
+	this.thread = t;
+	this.val = val;
+}
+}
+
+static public class Unbound extends AFn{
+	final public Var v;
+
+	public Unbound(Var v){
+		this.v = v;
+	}
+
+	public String toString(){
+		return "Unbound: " + v;
+	}
+
+	public Object throwArity(int n){
+		throw new IllegalStateException("Attempting to call unbound fn: " + v);
+	}
+}
 
 static class Frame{
-	//Var->Box
+	//Var->TBox
 	Associative bindings;
 	//Var->val
-	Associative frameBindings;
+//	Associative frameBindings;
 	Frame prev;
 
 
 	public Frame(){
-		this(PersistentHashMap.EMPTY, PersistentHashMap.EMPTY, null);
+		this(PersistentHashMap.EMPTY, null);
 	}
 
-	public Frame(Associative frameBindings, Associative bindings, Frame prev){
-		this.frameBindings = frameBindings;
+	public Frame(Associative bindings, Frame prev){
+//		this.frameBindings = frameBindings;
 		this.bindings = bindings;
 		this.prev = prev;
 	}
 }
 
-static ThreadLocal<Frame> dvals = new ThreadLocal<Frame>(){
+static final ThreadLocal<Frame> dvals = new ThreadLocal<Frame>(){
 
 	protected Frame initialValue(){
 		return new Frame();
 	}
 };
+
+static public volatile int rev = 0;
 
 static Keyword privateKey = Keyword.intern(null, "private");
 static IPersistentMap privateMeta = new PersistentArrayMap(new Object[]{privateKey, Boolean.TRUE});
@@ -52,11 +80,37 @@ static Keyword nsKey = Keyword.intern(null, "ns");
 //static Keyword tagKey = Keyword.intern(null, "tag");
 
 volatile Object root;
-transient final AtomicInteger count;
+volatile boolean dynamic = false;
+transient final AtomicBoolean threadBound;
 public final Symbol sym;
 public final Namespace ns;
 
 //IPersistentMap _meta;
+
+public static Object getThreadBindingFrame(){
+	Frame f = dvals.get();
+	if(f != null)
+		return f;
+	return new Frame();
+}
+
+public static void resetThreadBindingFrame(Object frame){
+	dvals.set((Frame) frame);
+}
+
+public Var setDynamic(){
+	this.dynamic = true;
+	return this;
+}
+
+public Var setDynamic(boolean b){
+	this.dynamic = b;
+	return this;
+}
+
+public final boolean isDynamic(){
+	return dynamic;
+}
 
 public static Var intern(Namespace ns, Symbol sym, Object root){
 	return intern(ns, sym, root, true);
@@ -79,10 +133,10 @@ public String toString(){
 public static Var find(Symbol nsQualifiedSym){
 	if(nsQualifiedSym.ns == null)
 		throw new IllegalArgumentException("Symbol must be namespace-qualified");
-	Namespace ns = Namespace.find(Symbol.create(nsQualifiedSym.ns));
+	Namespace ns = Namespace.find(Symbol.intern(nsQualifiedSym.ns));
 	if(ns == null)
 		throw new IllegalArgumentException("No such namespace: " + nsQualifiedSym.ns);
-	return ns.findInternedVar(Symbol.create(nsQualifiedSym.name));
+	return ns.findInternedVar(Symbol.intern(nsQualifiedSym.name));
 }
 
 public static Var intern(Symbol nsName, Symbol sym){
@@ -113,7 +167,7 @@ public static Var create(Object root){
 Var(Namespace ns, Symbol sym){
 	this.ns = ns;
 	this.sym = sym;
-	this.count = new AtomicInteger();
+	this.threadBound = new AtomicBoolean(false);
 	this.root = dvals;  //use dvals as magic not-bound value
 	setMeta(PersistentHashMap.EMPTY);
 }
@@ -121,18 +175,21 @@ Var(Namespace ns, Symbol sym){
 Var(Namespace ns, Symbol sym, Object root){
 	this(ns, sym);
 	this.root = root;
+	++rev;
 }
 
 public boolean isBound(){
-	return hasRoot() || (count.get() > 0 && dvals.get().bindings.containsKey(this));
+	return hasRoot() || (threadBound.get() && dvals.get().bindings.containsKey(this));
 }
 
 final public Object get(){
+	if(!threadBound.get() && root != dvals)
+		return root;
 	return deref();
 }
 
 final public Object deref(){
-	Box b = getThreadBinding();
+	TBox b = getThreadBinding();
 	if(b != null)
 		return b.val;
 	if(hasRoot())
@@ -153,15 +210,13 @@ public Object alter(IFn fn, ISeq args) throws Exception{
 
 public Object set(Object val){
 	validate(getValidator(), val);
-	Box b = getThreadBinding();
+	TBox b = getThreadBinding();
 	if(b != null)
+		{
+		if(Thread.currentThread() != b.thread)
+			throw new IllegalStateException(String.format("Can't set!: %s from non-binding thread", sym));
 		return (b.val = val);
-	//jury still out on this
-//	if(hasRoot())
-//		{
-//		bindRoot(val);
-//		return val;
-//		}
+		}
 	throw new IllegalStateException(String.format("Can't change/establish root binding of: %s with set", sym));
 }
 
@@ -208,6 +263,16 @@ public Object getRoot(){
 	throw new IllegalStateException(String.format("Var %s/%s is unbound.", ns, sym));
 }
 
+public Object getRawRoot(){
+		return root;
+}
+
+public Object getRawRootOrUnbound(){
+	if(hasRoot())
+		return root;
+	return new Unbound(this);
+}
+
 public Object getTag(){
 	return meta().valAt(RT.TAG_KEY);
 }
@@ -232,9 +297,10 @@ synchronized public void bindRoot(Object root){
 	validate(getValidator(), root);
 	Object oldroot = hasRoot()?this.root:null;
 	this.root = root;
+	++rev;
     try
         {
-        alterMeta(assoc, RT.list(macroKey, RT.F));
+        alterMeta(dissoc, RT.list(macroKey));
         }
     catch (Exception e)
         {
@@ -247,11 +313,13 @@ synchronized void swapRoot(Object root){
 	validate(getValidator(), root);
 	Object oldroot = hasRoot()?this.root:null;
 	this.root = root;
+	++rev;
     notifyWatches(oldroot,root);
 }
 
 synchronized public void unbindRoot(){
 	this.root = dvals;
+	++rev;
 }
 
 synchronized public void commuteRoot(IFn fn) throws Exception{
@@ -259,6 +327,7 @@ synchronized public void commuteRoot(IFn fn) throws Exception{
 	validate(getValidator(), newRoot);
 	Object oldroot = getRoot();
 	this.root = newRoot;
+	++rev;
     notifyWatches(oldroot,newRoot);
 }
 
@@ -267,6 +336,7 @@ synchronized public Object alterRoot(IFn fn, ISeq args) throws Exception{
 	validate(getValidator(), newRoot);
 	Object oldroot = getRoot();
 	this.root = newRoot;
+	++rev;
     notifyWatches(oldroot,newRoot);
 	return newRoot;
 }
@@ -278,35 +348,20 @@ public static void pushThreadBindings(Associative bindings){
 		{
 		IMapEntry e = (IMapEntry) bs.first();
 		Var v = (Var) e.key();
+		if(!v.dynamic)
+			throw new IllegalStateException(String.format("Can't dynamically bind non-dynamic var: %s/%s", v.ns, v.sym));
 		v.validate(v.getValidator(), e.val());
-		v.count.incrementAndGet();
-		bmap = bmap.assoc(v, new Box(e.val()));
+		v.threadBound.set(true);
+		bmap = bmap.assoc(v, new TBox(Thread.currentThread(), e.val()));
 		}
-	dvals.set(new Frame(bindings, bmap, f));
+	dvals.set(new Frame(bmap, f));
 }
 
 public static void popThreadBindings(){
 	Frame f = dvals.get();
 	if(f.prev == null)
 		throw new IllegalStateException("Pop without matching push");
-	for(ISeq bs = RT.keys(f.frameBindings); bs != null; bs = bs.next())
-		{
-		Var v = (Var) bs.first();
-		v.count.decrementAndGet();
-		}
 	dvals.set(f.prev);
-}
-
-public static void releaseThreadBindings(){
-	Frame f = dvals.get();
-	if(f.prev == null)
-		throw new IllegalStateException("Release without full unwind");
-	for(ISeq bs = RT.keys(f.bindings); bs != null; bs = bs.next())
-		{
-		Var v = (Var) bs.first();
-		v.count.decrementAndGet();
-		}
-	dvals.set(null);
 }
 
 public static Associative getThreadBindings(){
@@ -316,18 +371,18 @@ public static Associative getThreadBindings(){
 		{
 		IMapEntry e = (IMapEntry) bs.first();
 		Var v = (Var) e.key();
-		Box b = (Box) e.val();
+		TBox b = (TBox) e.val();
 		ret = ret.assoc(v, b.val);
 		}
 	return ret;
 }
 
-final Box getThreadBinding(){
-	if(count.get() > 0)
+public final TBox getThreadBinding(){
+	if(threadBound.get())
 		{
 		IMapEntry e = dvals.get().bindings.entryAt(this);
 		if(e != null)
-			return (Box) e.val();
+			return (TBox) e.val();
 		}
 	return null;
 }
@@ -480,6 +535,12 @@ static IFn assoc = new AFn(){
     @Override
     public Object invoke(Object m, Object k, Object v) throws Exception {
         return RT.assoc(m, k, v);
+    }
+};
+static IFn dissoc = new AFn() {
+    @Override
+    public Object invoke(Object c, Object k) throws Exception {
+        return RT.dissoc(c, k);
     }
 };
 }

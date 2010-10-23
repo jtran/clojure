@@ -12,13 +12,14 @@
 
 package clojure.lang;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class PersistentVector extends APersistentVector implements IEditableCollection{
+public class PersistentVector extends APersistentVector implements IObj, IEditableCollection{
 
-static class Node{
-	final AtomicReference<Thread> edit;
+static class Node implements Serializable {
+	transient final AtomicReference<Thread> edit;
 	final Object[] array;
 
 	Node(AtomicReference<Thread> edit, Object[] array){
@@ -39,6 +40,8 @@ final int cnt;
 final int shift;
 final Node root;
 final Object[] tail;
+final IPersistentMap _meta;
+
 
 public final static PersistentVector EMPTY = new PersistentVector(0, 5, EMPTY_NODE, new Object[]{});
 
@@ -64,7 +67,7 @@ static public PersistentVector create(Object... items){
 }
 
 PersistentVector(int cnt, int shift, Node root, Object[] tail){
-	super(null);
+	this._meta = null;
 	this.cnt = cnt;
 	this.shift = shift;
 	this.root = root;
@@ -73,7 +76,7 @@ PersistentVector(int cnt, int shift, Node root, Object[] tail){
 
 
 PersistentVector(IPersistentMap meta, int cnt, int shift, Node root, Object[] tail){
-	super(meta);
+	this._meta = meta;
 	this.cnt = cnt;
 	this.shift = shift;
 	this.root = root;
@@ -106,6 +109,12 @@ public Object[] arrayFor(int i){
 public Object nth(int i){
 	Object[] node = arrayFor(i);
 	return node[i & 0x01f];
+}
+
+public Object nth(int i, Object notFound){
+	if(i >= 0 && i < cnt)
+		return nth(i);
+	return notFound;
 }
 
 public PersistentVector assocN(int i, Object val){
@@ -147,6 +156,10 @@ public int count(){
 
 public PersistentVector withMeta(IPersistentMap meta){
 	return new PersistentVector(meta, cnt, shift, root, tail);
+}
+
+public IPersistentMap meta(){
+	return _meta;
 }
 
 
@@ -221,10 +234,10 @@ public ISeq seq(){
 
 static public final class ChunkedSeq extends ASeq implements IChunkedSeq{
 
-	final PersistentVector vec;
+	public final PersistentVector vec;
 	final Object[] node;
 	final int i;
-	final int offset;
+	public final int offset;
 
 	public ChunkedSeq(PersistentVector vec, int i, int offset){
 		this.vec = vec;
@@ -402,8 +415,8 @@ static final class TransientVector extends AFn implements ITransientVector, Coun
 		if(owner == Thread.currentThread())
 			return;
 		if(owner != null)
-			throw new IllegalAccessError("Mutable used by non-owner thread");
-		throw new IllegalAccessError("Mutable used after immutable call");
+			throw new IllegalAccessError("Transient used by non-owner thread");
+		throw new IllegalAccessError("Transient used after persistent! call");
 
 //		root = editableRoot(root);
 //		tail = editableTail(tail);
@@ -536,6 +549,12 @@ static final class TransientVector extends AFn implements ITransientVector, Coun
 		return node[i & 0x01f];
 	}
 
+	public Object nth(int i, Object notFound){
+		if(i >= 0 && i < count())
+			return nth(i);
+		return notFound;
+	}
+
 	public TransientVector assocN(int i, Object val){
 		ensureEditable();
 		if(i >= 0 && i < cnt)
@@ -602,11 +621,11 @@ static final class TransientVector extends AFn implements ITransientVector, Coun
 		int newshift = shift;
 		if(newroot == null)
 			{
-			newroot = EMPTY_NODE;
+			newroot = new Node(root.edit);
 			}
 		if(shift > 5 && newroot.array[1] == null)
 			{
-			newroot = (Node) newroot.array[0];
+			newroot = ensureEditable((Node) newroot.array[0]);
 			newshift -= 5;
 			}
 		root = newroot;

@@ -7,18 +7,76 @@
 ;   You must not remove this notice, or any other, from this software.
 
 ; Author: Frantisek Sodomka
-
+; Contributors: Stuart Halloway
 
 (ns clojure.test-clojure.sequences
   (:use clojure.test))
 
-
 ;; *** Tests ***
 
 ; TODO:
-; apply, map, reduce, filter, remove
+; apply, map, filter, remove
 ; and more...
 
+(deftest test-reduce-from-chunked-into-unchunked
+  (= [1 2 \a \b] (into [] (concat [1 2] "ab"))))
+ 
+(deftest test-reduce
+  (let [int+ (fn [a b] (+ (int a) (int b)))
+        arange (range 100) ;; enough to cross nodes
+        avec (into [] arange)
+        alist (into () arange)
+        obj-array (into-array arange)
+        int-array (into-array Integer/TYPE (map #(Integer. (int %)) arange))
+        long-array (into-array Long/TYPE arange)
+        float-array (into-array Float/TYPE arange)
+        char-array (into-array Character/TYPE (map char arange))
+        double-array (into-array Double/TYPE arange)
+        byte-array (into-array Byte/TYPE (map byte arange))
+        int-vec (into (vector-of :int) arange)
+        long-vec (into (vector-of :long) arange)
+        float-vec (into (vector-of :float) arange)
+        char-vec (into (vector-of :char) (map char arange))
+        double-vec (into (vector-of :double) arange)
+        byte-vec (into (vector-of :byte) (map byte arange))
+        all-true (into-array Boolean/TYPE (repeat 10 true))]
+    (is (== 4950
+           (reduce + arange)
+           (reduce + avec)
+           (reduce + alist)
+           (reduce + obj-array)
+           (reduce + int-array)
+           (reduce + long-array)
+           (reduce + float-array)
+           (reduce int+ char-array)
+           (reduce + double-array)
+           (reduce int+ byte-array)
+           (reduce + int-vec)
+           (reduce + long-vec)
+           (reduce + float-vec)
+           (reduce int+ char-vec)
+           (reduce + double-vec)
+           (reduce int+ byte-vec)))
+    (is (== 4951
+           (reduce + 1 arange)
+           (reduce + 1 avec)
+           (reduce + 1 alist)
+           (reduce + 1 obj-array)
+           (reduce + 1 int-array)
+           (reduce + 1 long-array)
+           (reduce + 1 float-array)
+           (reduce int+ 1 char-array)
+           (reduce + 1 double-array)
+           (reduce int+ 1 byte-array)
+           (reduce + 1 int-vec)
+           (reduce + 1 long-vec)
+           (reduce + 1 float-vec)
+           (reduce int+ 1 char-vec)
+           (reduce + 1 double-vec)
+           (reduce int+ 1 byte-vec)))
+    (is (= true
+           (reduce #(and %1 %2) all-true)
+           (reduce #(and %1 %2) true all-true)))))
 
 (deftest test-equality
   ; lazy sequences
@@ -117,8 +175,14 @@
       {} {}
       {:a 1 :b 2} {}
 
+      (sorted-map) (sorted-map)
+      (sorted-map :a 1 :b 2) (sorted-map)
+
       #{} #{}
       #{1 2} #{}
+
+      (sorted-set) (sorted-set)
+      (sorted-set 1 2) (sorted-set)
 
       (seq ()) nil      ; (seq ()) => nil
       (seq '(1 2)) ()
@@ -139,6 +203,18 @@
       42 nil
       1.2 nil
       "abc" nil ))
+
+;Tests that the comparator is preservered
+;The first element should be the same in each set if preserved.
+(deftest test-empty-sorted
+  (let [inv-compare (comp - compare)]
+    (are [x y] (= (first (into (empty x) x)) 
+		  (first y))
+	 (sorted-set 1 2 3) (sorted-set 1 2 3)
+	 (sorted-set-by inv-compare 1 2 3) (sorted-set-by inv-compare 1 2 3)
+
+	 (sorted-map 1 :a 2 :b 3 :c) (sorted-map 1 :a 2 :b 3 :c)
+	 (sorted-map-by inv-compare 1 :a 2 :b 3 :c) (sorted-map-by inv-compare 1 :a 2 :b 3 :c))))
 
 
 (deftest test-not-empty
@@ -167,11 +243,11 @@
 
 
 (deftest test-first
-  (is (thrown? IllegalArgumentException (first)))
+  ;(is (thrown? Exception (first)))
   (is (thrown? IllegalArgumentException (first true)))
   (is (thrown? IllegalArgumentException (first false)))
   (is (thrown? IllegalArgumentException (first 1)))
-  (is (thrown? IllegalArgumentException (first 1 2)))
+  ;(is (thrown? IllegalArgumentException (first 1 2)))
   (is (thrown? IllegalArgumentException (first \a)))
   (is (thrown? IllegalArgumentException (first 's)))
   (is (thrown? IllegalArgumentException (first :k)))
@@ -234,11 +310,11 @@
 
 
 (deftest test-next
-  (is (thrown? IllegalArgumentException (next)))
+ ; (is (thrown? IllegalArgumentException (next)))
   (is (thrown? IllegalArgumentException (next true)))
   (is (thrown? IllegalArgumentException (next false)))
   (is (thrown? IllegalArgumentException (next 1)))
-  (is (thrown? IllegalArgumentException (next 1 2)))
+  ;(is (thrown? IllegalArgumentException (next 1 2)))
   (is (thrown? IllegalArgumentException (next \a)))
   (is (thrown? IllegalArgumentException (next 's)))
   (is (thrown? IllegalArgumentException (next :k)))
@@ -369,7 +445,7 @@
 ;; (ffirst coll) = (first (first coll))
 ;;
 (deftest test-ffirst
-  (is (thrown? IllegalArgumentException (ffirst)))
+;  (is (thrown? IllegalArgumentException (ffirst)))
   (are [x y] (= x y)
     (ffirst nil) nil
 
@@ -389,7 +465,7 @@
 ;; (fnext coll) = (first (next coll)) = (second coll)
 ;;
 (deftest test-fnext
-  (is (thrown? IllegalArgumentException (fnext)))
+;  (is (thrown? IllegalArgumentException (fnext)))
   (are [x y] (= x y)
     (fnext nil) nil
 
@@ -413,7 +489,7 @@
 ;; (nfirst coll) = (next (first coll))
 ;;
 (deftest test-nfirst
-  (is (thrown? IllegalArgumentException (nfirst)))
+;  (is (thrown? IllegalArgumentException (nfirst)))
   (are [x y] (= x y)
     (nfirst nil) nil
 
@@ -433,7 +509,7 @@
 ;; (nnext coll) = (next (next coll))
 ;;
 (deftest test-nnext
-  (is (thrown? IllegalArgumentException (nnext)))
+;  (is (thrown? IllegalArgumentException (nnext)))
   (are [x y] (= x y)
     (nnext nil) nil
 
@@ -801,7 +877,7 @@
 
 
 (deftest test-repeat
-  (is (thrown? IllegalArgumentException (repeat)))
+  ;(is (thrown? IllegalArgumentException (repeat)))
 
   ; infinite sequence => use take
   (are [x y] (= x y)
@@ -980,5 +1056,107 @@
       true (not-any? #{:a} [:b :b]) ))
 
 
-; TODO: some
+(deftest test-some
+  ;; always nil for nil or empty coll/seq
+  (are [x] (= (some pos? x) nil)
+       nil
+       () [] {} #{}
+       (lazy-seq [])
+       (into-array []))
+  
+  (are [x y] (= x y)
+       nil (some nil nil)
+       
+       true (some pos? [1])
+       true (some pos? [1 2])
+       
+       nil (some pos? [-1])
+       nil (some pos? [-1 -2])
+       true (some pos? [-1 2])
+       true (some pos? [1 -2])
+       
+       :a (some #{:a} [:a :a])
+       :a (some #{:a} [:b :a])
+       nil (some #{:a} [:b :b])
+       
+       :a (some #{:a} '(:a :b))
+       :a (some #{:a} #{:a :b})
+       ))
+
+(deftest test-flatten-present
+  (are [expected nested-val] (= (flatten nested-val) expected)
+       ;simple literals
+       [] nil
+       [] 1
+       [] 'test
+       [] :keyword
+       [] 1/2
+       [] #"[\r\n]"
+       [] true
+       [] false
+       ;vectors
+       [1 2 3 4 5] [[1 2] [3 4 [5]]]
+       [1 2 3 4 5] [1 2 3 4 5]
+       [#{1 2} 3 4 5] [#{1 2} 3 4 5]
+       ;sets
+       [] #{}
+       [] #{#{1 2} 3 4 5}
+       [] #{1 2 3 4 5}
+       [] #{#{1 2} 3 4 5}
+       ;lists
+       [] '()
+       [1 2 3 4 5] `(1 2 3 4 5)
+       ;maps
+       [] {:a 1 :b 2}
+       [:a 1 :b 2] (seq {:a 1 :b 2})
+       [] {[:a :b] 1 :c 2}
+       [:a :b 1 :c 2] (seq {[:a :b] 1 :c 2})
+       [:a 1 2 :b 3] (seq {:a [1 2] :b 3})
+       ;Strings
+       [] "12345"
+       [\1 \2 \3 \4 \5] (seq "12345")
+       ;fns
+       [] count
+       [count even? odd?] [count even? odd?]))
+
+(deftest test-group-by
+  (is (= (group-by even? [1 2 3 4 5]) 
+	 {false [1 3 5], true [2 4]})))
+
+(deftest test-partition-by
+  (are [test-seq] (= (partition-by (comp even? count) test-seq)
+		     [["a"] ["bb" "cccc" "dd"] ["eee" "f"] ["" "hh"]])
+       ["a" "bb" "cccc" "dd" "eee" "f" "" "hh"]
+       '("a" "bb" "cccc" "dd" "eee" "f" "" "hh"))
+  (is (=(partition-by #{\a \e \i \o \u} "abcdefghijklm")
+       [[\a] [\b \c \d] [\e] [\f \g \h] [\i] [\j \k \l \m]])))
+
+(deftest test-frequencies
+  (are [expected test-seq] (= (frequencies test-seq) expected)
+       {\p 2, \s 4, \i 4, \m 1} "mississippi"
+       {1 4 2 2 3 1} [1 1 1 1 2 2 3]
+       {1 4 2 2 3 1} '(1 1 1 1 2 2 3)))
+
+(deftest test-reductions
+  (is (= (reductions + nil)
+         [0]))
+  (is (= (reductions + [1 2 3 4 5])
+	 [1 3 6 10 15]))
+  (is (= (reductions + 10 [1 2 3 4 5])
+	 [10 11 13 16 20 25])))
+
+(deftest test-rand-nth-invariants
+  (let [elt (rand-nth [:a :b :c :d])]
+    (is (#{:a :b :c :d} elt))))
+
+(deftest test-partition-all
+  (is (= (partition-all 4 [1 2 3 4 5 6 7 8 9])
+	 [[1 2 3 4] [5 6 7 8] [9]]))
+  (is (= (partition-all 4 2 [1 2 3 4 5 6 7 8 9])
+	 [[1 2 3 4] [3 4 5 6] [5 6 7 8] [7 8 9] [9]])))
+
+(deftest test-shuffle-invariants
+  (is (= (count (shuffle [1 2 3 4])) 4))
+  (let [shuffled-seq (shuffle [1 2 3 4])]
+    (is (every? #{1 2 3 4} shuffled-seq))))
 

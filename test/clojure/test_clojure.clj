@@ -48,6 +48,24 @@
       :clojure-set
       :clojure-xml
       :clojure-zip
+      :protocols
+      :genclass
+      :main
+      :vectors
+      :annotations
+      :pprint
+      :serialization
+      :rt
+      :repl
+      :java.io
+      :string
+      :java.javadoc
+      :java.shell
+      :transients
+      :def
+      :keywords
+      :data
+      :reflect
       ])
 
 (def test-namespaces

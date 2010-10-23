@@ -12,29 +12,12 @@
 
 package clojure.lang;
 
-import java.util.List;
 import java.util.Comparator;
 
-public class PersistentTreeSet extends APersistentSet implements Reversible, Sorted{
+public class PersistentTreeSet extends APersistentSet implements IObj, Reversible, Sorted{
 static public final PersistentTreeSet EMPTY = new PersistentTreeSet(null, PersistentTreeMap.EMPTY);
+final IPersistentMap _meta;
 
-public static PersistentTreeSet create(Object... init){
-	PersistentTreeSet ret = EMPTY;
-	for(int i = 0; i < init.length; i++)
-		{
-		ret = (PersistentTreeSet) ret.cons(init[i]);
-		}
-	return ret;
-}
-
-public static PersistentTreeSet create(List init){
-	PersistentTreeSet ret = EMPTY;
-	for(Object key : init)
-		{
-		ret = (PersistentTreeSet) ret.cons(key);
-		}
-	return ret;
-}
 
 static public PersistentTreeSet create(ISeq items){
 	PersistentTreeSet ret = EMPTY;
@@ -45,8 +28,18 @@ static public PersistentTreeSet create(ISeq items){
 	return ret;
 }
 
+static public PersistentTreeSet create(Comparator comp, ISeq items){
+	PersistentTreeSet ret = new PersistentTreeSet(null, new PersistentTreeMap(null, comp));
+	for(; items != null; items = items.next())
+		{
+		ret = (PersistentTreeSet) ret.cons(items.first());
+		}
+	return ret;
+}
+
 PersistentTreeSet(IPersistentMap meta, IPersistentMap impl){
-	super(meta, impl);
+	super(impl);
+	this._meta = meta;
 }
 
 public IPersistentSet disjoin(Object key) throws Exception{
@@ -62,7 +55,7 @@ public IPersistentSet cons(Object o){
 }
 
 public IPersistentCollection empty(){
-	return EMPTY.withMeta(meta());	
+	return new PersistentTreeSet(meta(),(PersistentTreeMap)impl.empty());
 }
 
 public ISeq rseq() throws Exception{
@@ -91,4 +84,7 @@ public ISeq seqFrom(Object key, boolean ascending){
 	return RT.keys(m.seqFrom(key,ascending));
 }
 
+public IPersistentMap meta(){
+	return _meta;
+}
 }

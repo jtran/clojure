@@ -17,50 +17,54 @@
 
 ;; DOCUMENTATION
 ;;
-;; This is an extension to clojure.test that adds support
-;; for the Test Anything Protocol (TAP).  
-;;
-;; TAP is a simple text-based syntax for reporting test results.  TAP
-;; was originally develped for Perl, and now has implementations in
-;; several languages.  For more information on TAP, see
-;; http://testanything.org/ and
-;; http://search.cpan.org/~petdance/TAP-1.0.0/TAP.pm
-;;
-;; To use this library, wrap any calls to
-;; clojure.test/run-tests in the with-tap-output macro,
-;; like this:
-;;
-;;   (use 'clojure.test)
-;;   (use 'clojure.test.tap)
-;;
-;;   (with-tap-output
-;;    (run-tests 'my.cool.library))
 
 
 
-(ns clojure.test.tap
+(ns ^{:doc "clojure.test extensions for the Test Anything Protocol (TAP)
+
+  TAP is a simple text-based syntax for reporting test results.  TAP
+  was originally develped for Perl, and now has implementations in
+  several languages.  For more information on TAP, see
+  http://testanything.org/ and
+  http://search.cpan.org/~petdance/TAP-1.0.0/TAP.pm
+
+  To use this library, wrap any calls to
+  clojure.test/run-tests in the with-tap-output macro,
+  like this:
+
+    (use 'clojure.test)
+    (use 'clojure.test.tap)
+
+    (with-tap-output
+     (run-tests 'my.cool.library))"
+       :author "Stuart Sierra"}
+  clojure.test.tap
   (:require [clojure.test :as t]
             [clojure.stacktrace :as stack]))
 
 (defn print-tap-plan
   "Prints a TAP plan line like '1..n'.  n is the number of tests"
+  {:added "1.1"}
   [n]
   (println (str "1.." n)))
 
 (defn print-tap-diagnostic
   "Prints a TAP diagnostic line.  data is a (possibly multi-line)
   string."
+  {:added "1.1"}
   [data]
-  (doseq [line (.split data "\n")]
+  (doseq [line (.split ^String data "\n")]
     (println "#" line)))
 
 (defn print-tap-pass
   "Prints a TAP 'ok' line.  msg is a string, with no line breaks"
+  {:added "1.1"}
   [msg]
   (println "ok" msg))
 
 (defn print-tap-fail 
   "Prints a TAP 'not ok' line.  msg is a string, with no line breaks"
+  {:added "1.1"}
   [msg]
   (println "not ok" msg))
 
@@ -106,6 +110,7 @@
 (defmacro with-tap-output
   "Execute body with modified test reporting functions that produce
   TAP output"
+  {:added "1.1"}
   [& body]
   `(binding [t/report tap-report]
      ~@body))

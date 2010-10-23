@@ -12,20 +12,14 @@
 
 package clojure.lang;
 
+import java.io.Serializable;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class APersistentVector extends AFn implements IPersistentVector, Iterable,
                                                                List,
-                                                               RandomAccess, Comparable, Streamable{
+                                                               RandomAccess, Comparable,
+                                                               Serializable {
 int _hash = -1;
-
-public APersistentVector(IPersistentMap meta){
-	super(meta);
-}
-
-protected APersistentVector(){
-}
 
 public String toString(){
 	return RT.printString(this);
@@ -44,6 +38,7 @@ public ISeq rseq(){
 }
 
 static boolean doEquals(IPersistentVector v, Object obj){
+	if(v == obj) return true;
 	if(obj instanceof List || obj instanceof IPersistentVector)
 		{
 		Collection ma = (Collection) obj;
@@ -159,6 +154,12 @@ public int hashCode(){
 
 public Object get(int index){
 	return nth(index);
+}
+
+public Object nth(int i, Object notFound){
+	if(i >= 0 && i < count())
+		return nth(i);
+	return notFound;
 }
 
 public Object remove(int i){
@@ -405,25 +406,6 @@ public int compareTo(Object o){
 	return 0;
 }
 
-public Stream stream() throws Exception {
-    return new Stream(new Src(this));
-}
-
-    static class Src extends AFn{
-        final IPersistentVector v;
-        int i = 0;
-
-        Src(IPersistentVector v) {
-            this.v = v;
-        }
-
-        public Object invoke() throws Exception {
-            if (i < v.count())
-                return v.nth(i++);
-            return RT.EOS;
-        }
-    }
-
     static class Seq extends ASeq implements IndexedSeq, IReduce{
 	//todo - something more efficient
 	final IPersistentVector v;
@@ -478,11 +460,11 @@ public Stream stream() throws Exception {
 	}
     }
 
-static class RSeq extends ASeq implements IndexedSeq, Counted{
+public static class RSeq extends ASeq implements IndexedSeq, Counted{
 	final IPersistentVector v;
 	final int i;
 
-	RSeq(IPersistentVector vector, int i){
+	public RSeq(IPersistentVector vector, int i){
 		this.v = vector;
 		this.i = i;
 	}
@@ -516,14 +498,17 @@ static class RSeq extends ASeq implements IndexedSeq, Counted{
 	}
 }
 
-static class SubVector extends APersistentVector{
+static class SubVector extends APersistentVector implements IObj{
 	final IPersistentVector v;
 	final int start;
 	final int end;
+	final IPersistentMap _meta;
+
 
 
 	public SubVector(IPersistentMap meta, IPersistentVector v, int start, int end){
-		super(meta);
+		this._meta = meta;
+
 		if(v instanceof APersistentVector.SubVector)
 			{
 			APersistentVector.SubVector sv = (APersistentVector.SubVector) v;
@@ -574,6 +559,10 @@ static class SubVector extends APersistentVector{
 		if(meta == _meta)
 			return this;
 		return new SubVector(meta, v, start, end);
+	}
+
+	public IPersistentMap meta(){
+		return _meta;
 	}
 }
 }

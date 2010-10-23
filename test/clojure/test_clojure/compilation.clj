@@ -19,7 +19,7 @@
 
 
 (deftest test-compiler-metadata
-  (let [m ^#'when]
+  (let [m (meta #'when)]
     (are [x y]  (= x y)
         (list? (:arglists m)) true
         (> (count (:arglists m)) 0) true
@@ -36,4 +36,17 @@
         (:macro m) true
         (:name m) 'when )))
 
-
+(deftest test-embedded-constants
+  (testing "Embedded constants"
+    (is (eval `(= Boolean/TYPE ~Boolean/TYPE)))
+    (is (eval `(= Byte/TYPE ~Byte/TYPE)))
+    (is (eval `(= Character/TYPE ~Character/TYPE)))
+    (is (eval `(= Double/TYPE ~Double/TYPE)))
+    (is (eval `(= Float/TYPE ~Float/TYPE)))
+    (is (eval `(= Integer/TYPE ~Integer/TYPE)))
+    (is (eval `(= Long/TYPE ~Long/TYPE)))
+    (is (eval `(= Short/TYPE ~Short/TYPE)))))
+ 
+(deftest test-compiler-resolution
+  (testing "resolve nonexistent class create should return nil (assembla #262)"
+    (is (nil? (resolve 'NonExistentClass.)))))

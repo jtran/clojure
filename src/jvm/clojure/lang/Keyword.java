@@ -15,17 +15,29 @@ package clojure.lang;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.SoftReference;
 
 
-public class Keyword implements IFn, Comparable, Named, Serializable {
+public final class Keyword implements IFn, Comparable, Named, Serializable {
 
-private static ConcurrentHashMap<Symbol, Keyword> table = new ConcurrentHashMap();
+private static ConcurrentHashMap<Symbol, SoftReference<Keyword>> table = new ConcurrentHashMap();
+static final ReferenceQueue rq = new ReferenceQueue();
 public final Symbol sym;
+final int hash;
 
 public static Keyword intern(Symbol sym){
+	Util.clearCache(rq, table);
 	Keyword k = new Keyword(sym);
-	Keyword existingk = table.putIfAbsent(sym, k);
-	return existingk == null ? k : existingk;
+	SoftReference<Keyword> existingRef = table.putIfAbsent(sym, new SoftReference<Keyword>(k,rq));
+	if(existingRef == null)
+		return k;
+	Keyword existingk = existingRef.get();
+	if(existingk != null)
+		return existingk;
+	//entry died in the interim, do over
+	table.remove(sym, existingRef);
+	return intern(sym);
 }
 
 public static Keyword intern(String ns, String name){
@@ -38,10 +50,27 @@ public static Keyword intern(String nsname){
 
 private Keyword(Symbol sym){
 	this.sym = sym;
+	hash = sym.hashCode() + 0x9e3779b9;
 }
 
-public int hashCode(){
-	return sym.hashCode() + 0x9e3779b9;
+public static Keyword find(Symbol sym){
+    SoftReference<Keyword> ref = table.get(sym);
+    if (ref != null)
+        return ref.get();
+    else
+        return null;
+}
+
+public static Keyword find(String ns, String name){
+    return find(Symbol.intern(ns, name));
+}
+
+public static Keyword find(String nsname){
+    return find(Symbol.intern(nsname));
+}
+
+public final int hashCode(){
+	return hash;
 }
 
 public String toString(){
@@ -89,11 +118,15 @@ private Object readResolve() throws ObjectStreamException{
  * @return the value at the key or nil if not found
  * @throws Exception
  */
-public Object invoke(Object obj) throws Exception{
+final public Object invoke(Object obj) throws Exception{
+	if(obj instanceof ILookup)
+		return ((ILookup)obj).valAt(this);
 	return RT.get(obj, this);
 }
 
-public Object invoke(Object obj, Object notFound) throws Exception{
+final public Object invoke(Object obj, Object notFound) throws Exception{
+	if(obj instanceof ILookup)
+		return ((ILookup)obj).valAt(this,notFound);
 	return RT.get(obj, this, notFound);
 }
 

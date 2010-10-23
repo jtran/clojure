@@ -10,6 +10,7 @@
 
 package clojure.lang;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
@@ -25,12 +26,13 @@ import java.util.Map;
  * null keys and values are ok, but you won't be able to distinguish a null value via valAt - use contains/entryAt
  */
 
-public class PersistentArrayMap extends APersistentMap implements IEditableCollection {
+public class PersistentArrayMap extends APersistentMap implements IObj, IEditableCollection {
 
 final Object[] array;
 static final int HASHTABLE_THRESHOLD = 16;
 
 public static final PersistentArrayMap EMPTY = new PersistentArrayMap();
+private final IPersistentMap _meta;
 
 static public IPersistentMap create(Map other){
 	ITransientMap ret = EMPTY.asTransient();
@@ -44,6 +46,7 @@ static public IPersistentMap create(Map other){
 
 protected PersistentArrayMap(){
 	this.array = new Object[]{};
+	this._meta = null;
 }
 
 public PersistentArrayMap withMeta(IPersistentMap meta){
@@ -58,6 +61,17 @@ IPersistentMap createHT(Object[] init){
 	return PersistentHashMap.create(meta(), init);
 }
 
+static public PersistentArrayMap createWithCheck(Object[] init){
+	for(int i=0;i< init.length;i += 2)
+		{
+		for(int j=i+2;j<init.length;j += 2)
+			{
+			if(equalKey(init[i],init[j]))
+				throw new IllegalArgumentException("Duplicate key: " + init[i]);
+			}
+		}
+	return new PersistentArrayMap(init);
+}
 /**
  * This ctor captures/aliases the passed array, so do not modify later
  *
@@ -65,11 +79,12 @@ IPersistentMap createHT(Object[] init){
  */
 public PersistentArrayMap(Object[] init){
 	this.array = init;
+	this._meta = null;
 }
 
 
 public PersistentArrayMap(IPersistentMap meta, Object[] init){
-	super(meta);
+	this._meta = meta;
 	this.array = init;
 }
 
@@ -183,9 +198,7 @@ private int indexOf(Object key){
 }
 
 static boolean equalKey(Object k1, Object k2){
-	if(k1 == null)
-		return k2 == null;
-	return k1.equals(k2);
+	return Util.equiv(k1, k2);
 }
 
 public Iterator iterator(){
@@ -196,6 +209,10 @@ public ISeq seq(){
 	if(array.length > 0)
 		return new Seq(array, 0);
 	return null;
+}
+
+public IPersistentMap meta(){
+	return _meta;
 }
 
 static class Seq extends ASeq implements Counted{
@@ -269,7 +286,7 @@ public ITransientMap asTransient(){
 static final class TransientArrayMap extends ATransientMap {
 	int len;
 	final Object[] array;
-	final Thread owner;
+	Thread owner;
 
 	public TransientArrayMap(Object[] array){
 		this.owner = Thread.currentThread();
@@ -330,6 +347,8 @@ static final class TransientArrayMap extends ATransientMap {
 	}
 	
 	IPersistentMap doPersistent(){
+		ensureEditable();
+		owner = null;
 		Object[] a = new Object[len];
 		System.arraycopy(array,0,a,0,len);
 		return new PersistentArrayMap(a);
@@ -339,8 +358,8 @@ static final class TransientArrayMap extends ATransientMap {
 		if(owner == Thread.currentThread())
 			return;
 		if(owner != null)
-			throw new IllegalAccessError("Mutable used by non-owner thread");
-		throw new IllegalAccessError("Mutable used after immutable call");
+			throw new IllegalAccessError("Transient used by non-owner thread");
+		throw new IllegalAccessError("Transient used after persistent! call");
 	}
 }
 }

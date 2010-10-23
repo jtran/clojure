@@ -12,13 +12,15 @@
 
 package clojure.lang;
 
+import java.io.ObjectStreamException;
+import java.io.Serializable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class Namespace extends AReference{
+public class Namespace extends AReference implements Serializable {
 final public Symbol name;
-final AtomicReference<IPersistentMap> mappings = new AtomicReference<IPersistentMap>();
-final AtomicReference<IPersistentMap> aliases = new AtomicReference<IPersistentMap>();
+transient final AtomicReference<IPersistentMap> mappings = new AtomicReference<IPersistentMap>();
+transient final AtomicReference<IPersistentMap> aliases = new AtomicReference<IPersistentMap>();
 
 final static ConcurrentHashMap<Symbol, Namespace> namespaces = new ConcurrentHashMap<Symbol, Namespace>();
 
@@ -64,7 +66,29 @@ public Var intern(Symbol sym){
 	if(o instanceof Var && ((Var) o).ns == this)
 		return (Var) o;
 
-	throw new IllegalStateException(sym + " already refers to: " + o + " in namespace: " + name);
+	if(v == null)
+		v = new Var(this, sym);
+
+	warnOrFailOnReplace(sym, o, v);
+
+
+	while(!mappings.compareAndSet(map, map.assoc(sym, v)))
+		map = getMappings();
+
+	return v;
+}
+
+private void warnOrFailOnReplace(Symbol sym, Object o, Object v){
+    if (o instanceof Var)
+        {
+        Namespace ns = ((Var)o).ns;
+        if (ns == this)
+            return;
+        if (ns != RT.CLOJURE_NS)
+            throw new IllegalStateException(sym + " already refers to: " + o + " in namespace: " + name);
+        }
+	RT.errPrintWriter().println("WARNING: " + sym + " already refers to: " + o + " in namespace: " + name
+		+ ", being replaced by: " + v);
 }
 
 Object reference(Symbol sym, Object val){
@@ -83,7 +107,37 @@ Object reference(Symbol sym, Object val){
 	if(o == val)
 		return o;
 
-	throw new IllegalStateException(sym + " already refers to: " + o + " in namespace: " + name);
+	warnOrFailOnReplace(sym, o, val);
+
+	while(!mappings.compareAndSet(map, map.assoc(sym, val)))
+		map = getMappings();
+
+	return val;
+
+}
+
+public static boolean areDifferentInstancesOfSameClassName(Class cls1, Class cls2) {
+    return (cls1 != cls2) && (cls1.getName().equals(cls2.getName()));
+}
+
+Class referenceClass(Symbol sym, Class val){
+    if(sym.ns != null)
+        {
+        throw new IllegalArgumentException("Can't intern namespace-qualified symbol");
+        }
+    IPersistentMap map = getMappings();
+    Class c = (Class) map.valAt(sym);
+    while((c == null) || (areDifferentInstancesOfSameClassName(c, val)))
+        {
+        IPersistentMap newMap = map.assoc(sym, val);
+        mappings.compareAndSet(map, newMap);
+        map = getMappings();
+        c = (Class) map.valAt(sym);
+        }
+    if(c == val)
+        return c;
+
+    throw new IllegalStateException(sym + " already refers to: " + c + " in namespace: " + name);
 }
 
 public void unmap(Symbol sym) throws Exception{
@@ -101,7 +155,7 @@ public void unmap(Symbol sym) throws Exception{
 }
 
 public Class importClass(Symbol sym, Class c){
-	return (Class) reference(sym, c);
+	return referenceClass(sym, c);
 
 }
 
@@ -179,5 +233,11 @@ public void removeAlias(Symbol alias) throws Exception{
 		aliases.compareAndSet(map, newMap);
 		map = getAliases();
 		}
+}
+
+private Object readResolve() throws ObjectStreamException {
+    // ensures that serialized namespaces are "deserialized" to the
+    // namespace in the present runtime
+    return findOrCreate(name);
 }
 }

@@ -22,59 +22,6 @@
 
 ;; *** Types ***
 
-(deftest Coerced-Byte
-  (let [v (byte 3)]
-    (are [x] (true? x)
-     (instance? Byte v)
-     (number? v)
-     (integer? v)
-     (rational? v))))
-
-(deftest Coerced-Short
-  (let [v (short 3)]
-    (are [x] (true? x)
-     (instance? Short v)
-     (number? v)
-     (integer? v)
-     (rational? v))))
-
-(deftest Coerced-Integer
-  (let [v (int 3)]
-    (are [x] (true? x)
-     (instance? Integer v)
-     (number? v)
-     (integer? v)
-     (rational? v))))
-
-(deftest Coerced-Long
-  (let [v (long 3)]
-    (are [x] (true? x)
-     (instance? Long v)
-     (number? v)
-     (integer? v)
-     (rational? v))))
-
-(deftest Coerced-BigInteger
-  (let [v (bigint 3)]
-    (are [x] (true? x)
-     (instance? BigInteger v)
-     (number? v)
-     (integer? v)
-     (rational? v))))
-
-(deftest Coerced-Float
-  (let [v (float 3)]
-    (are [x] (true? x)
-     (instance? Float v)
-     (number? v)
-     (float? v))))
-
-(deftest Coerced-Double
-  (let [v (double 3)]
-    (are [x] (true? x)
-     (instance? Double v)
-     (number? v)
-     (float? v))))
 
 (deftest Coerced-BigDecimal
   (let [v (bigdec 3)]
@@ -164,6 +111,10 @@
 
   (is (> (* 3 (int (/ Integer/MAX_VALUE 2.0))) Integer/MAX_VALUE)) )  ; no overflow
 
+(deftest test-ratios-simplify-to-ints-where-appropriate
+  (testing "negative denominator (assembla #275)"
+    (is (integer? (/ 1 -1/2)))
+    (is (integer? (/ 0 -1/2)))))
 
 (deftest test-divide
   (are [x y] (= x y)
@@ -201,9 +152,9 @@
 
 (deftest test-mod
   ; wrong number of args
-  (is (thrown? IllegalArgumentException (mod)))
-  (is (thrown? IllegalArgumentException (mod 1)))
-  (is (thrown? IllegalArgumentException (mod 3 2 1)))
+;  (is (thrown? IllegalArgumentException (mod)))
+;  (is (thrown? IllegalArgumentException (mod 1)))
+;  (is (thrown? IllegalArgumentException (mod 3 2 1)))
 
   ; divide by zero
   (is (thrown? ArithmeticException (mod 9 0)))
@@ -251,9 +202,9 @@
 
 (deftest test-rem
   ; wrong number of args
-  (is (thrown? IllegalArgumentException (rem)))
-  (is (thrown? IllegalArgumentException (rem 1)))
-  (is (thrown? IllegalArgumentException (rem 3 2 1)))
+;  (is (thrown? IllegalArgumentException (rem)))
+;  (is (thrown? IllegalArgumentException (rem 1)))
+;  (is (thrown? IllegalArgumentException (rem 3 2 1)))
 
   ; divide by zero
   (is (thrown? ArithmeticException (rem 9 0)))
@@ -298,9 +249,9 @@
 
 (deftest test-quot
   ; wrong number of args
-  (is (thrown? IllegalArgumentException (quot)))
-  (is (thrown? IllegalArgumentException (quot 1)))
-  (is (thrown? IllegalArgumentException (quot 3 2 1)))
+;  (is (thrown? IllegalArgumentException (quot)))
+;  (is (thrown? IllegalArgumentException (quot 1)))
+;  (is (thrown? IllegalArgumentException (quot 3 2 1)))
 
   ; divide by zero
   (is (thrown? ArithmeticException (quot 9 0)))
@@ -389,3 +340,52 @@
   (is (thrown? ArithmeticException (odd? 1/2)))
   (is (thrown? ArithmeticException (odd? (double 10)))))
 
+(defn- expt
+  "clojure.contrib.math/expt is a better and much faster impl, but this works.
+Math/pow overflows to Infinity."
+  [x n] (apply *' (replicate n x)))
+
+(deftest test-bit-shift-left
+  (are [x y] (= x y)
+       2r10 (bit-shift-left 2r1 1)
+       2r100 (bit-shift-left 2r1 2)
+       2r1000 (bit-shift-left 2r1 3)
+       2r00101110 (bit-shift-left 2r00010111 1)
+       2r00101110 (apply bit-shift-left [2r00010111 1])
+       2r01 (bit-shift-left 2r10 -1)
+       (expt 2 32) (bit-shift-left 1 32)
+       (expt 2N 10000) (bit-shift-left 1N 10000)
+       ))
+
+(deftest test-bit-shift-right
+  (are [x y] (= x y)
+       2r0 (bit-shift-right 2r1 1)
+       2r010 (bit-shift-right 2r100 1)
+       2r001 (bit-shift-right 2r100 2)
+       2r000 (bit-shift-right 2r100 3)
+       2r0001011 (bit-shift-right 2r00010111 1)
+       2r0001011 (apply bit-shift-right [2r00010111 1])
+       2r100 (bit-shift-right 2r10 -1)
+       1 (bit-shift-right (expt 2 32) 32)
+       1N (bit-shift-right (expt 2N 10000) 10000)
+       ))
+
+
+;; arrays
+(deftest test-array-types
+  (are [x y z] (= (Class/forName x) (class y) (class z))
+       "[Z" (boolean-array 1) (booleans (boolean-array 1 true))
+       "[B" (byte-array 1) (bytes (byte-array 1 (byte 1)))
+       "[C" (char-array 1) (chars (char-array 1 \a))
+       "[S" (short-array 1) (shorts (short-array 1 (short 1)))
+       "[F" (float-array 1) (floats (float-array 1 1))
+       "[D" (double-array 1) (doubles (double-array 1 1))
+       "[I" (int-array 1) (ints (int-array 1 1))
+       "[J" (long-array 1) (longs (long-array 1 1))))
+
+
+(deftest test-ratios
+  (is (== (denominator 1/2) 2))
+  (is (== (numerator 1/2) 1))
+  (is (= (bigint (/ 100000000000000000000 3)) 33333333333333333333))
+  (is (= (long 10000000000000000000/3) 3333333333333333333)))

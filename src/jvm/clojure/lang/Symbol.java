@@ -16,11 +16,12 @@ import java.io.Serializable;
 import java.io.ObjectStreamException;
 
 
-public class Symbol extends AFn implements Comparable, Named, Serializable{
+public class Symbol extends AFn implements IObj, Comparable, Named, Serializable{
 //these must be interned strings!
 final String ns;
 final String name;
 final int hash;
+final IPersistentMap _meta;
 
 public String toString(){
 	if(ns != null)
@@ -42,24 +43,17 @@ static public Symbol intern(String ns, String name){
 
 static public Symbol intern(String nsname){
 	int i = nsname.lastIndexOf('/');
-	if(i == -1)
+	if(i == -1 || nsname.equals("/"))
 		return new Symbol(null, nsname.intern());
 	else
 		return new Symbol(nsname.substring(0, i).intern(), nsname.substring(i + 1).intern());
-}
-
-static public Symbol create(String name_interned){
-	return new Symbol(null, name_interned);
-}
-
-static public Symbol create(String ns_interned, String name_interned){
-	return new Symbol(ns_interned, name_interned);
 }
 
 private Symbol(String ns_interned, String name_interned){
 	this.name = name_interned;
 	this.ns = ns_interned;
 	this.hash = Util.hashCombine(name.hashCode(), Util.hash(ns));
+	this._meta = null;
 }
 
 public boolean equals(Object o){
@@ -78,14 +72,14 @@ public int hashCode(){
 	return hash;
 }
 
-public Obj withMeta(IPersistentMap meta){
+public IObj withMeta(IPersistentMap meta){
 	return new Symbol(meta, ns, name);
 }
 
 private Symbol(IPersistentMap meta, String ns, String name){
-	super(meta);
 	this.name = name;
 	this.ns = ns;
+	this._meta = meta;
 	this.hash = Util.hashCombine(name.hashCode(), Util.hash(ns));
 }
 
@@ -118,4 +112,7 @@ public Object invoke(Object obj, Object notFound) throws Exception{
 	return RT.get(obj, this, notFound);
 }
 
+public IPersistentMap meta(){
+	return _meta;
+}
 }

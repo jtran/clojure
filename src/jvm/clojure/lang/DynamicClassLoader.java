@@ -13,47 +13,51 @@
 package clojure.lang;
 
 import java.util.HashMap;
-import java.util.Enumeration;
-import java.util.Vector;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.net.URLClassLoader;
 import java.net.URL;
-import java.io.IOException;
-
-//todo: possibly extend URLClassLoader?
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.SoftReference;
 
 public class DynamicClassLoader extends URLClassLoader{
 HashMap<Integer, Object[]> constantVals = new HashMap<Integer, Object[]>();
-HashMap<String, byte[]> map = new HashMap<String, byte[]>();
+static ConcurrentHashMap<String, SoftReference<Class>>classCache =
+        new ConcurrentHashMap<String, SoftReference<Class> >();
+
 static final URL[] EMPTY_URLS = new URL[]{};
+
+static final ReferenceQueue rq = new ReferenceQueue();
 
 public DynamicClassLoader(){
     //pseudo test in lieu of hasContextClassLoader()
 	super(EMPTY_URLS,(Thread.currentThread().getContextClassLoader() == null ||
                 Thread.currentThread().getContextClassLoader() == ClassLoader.getSystemClassLoader())?
                 Compiler.class.getClassLoader():Thread.currentThread().getContextClassLoader());
-//	super(EMPTY_URLS,Compiler.class.getClassLoader());
 }
 
 public DynamicClassLoader(ClassLoader parent){
 	super(EMPTY_URLS,parent);
 }
 
-public Class defineClass(String name, byte[] bytes){
-	return defineClass(name, bytes, 0, bytes.length);
-}
-
-public void addBytecode(String className, byte[] bytes){
-	if(map.containsKey(className))
-		throw new IllegalStateException(String.format("Class %s already present", className));
-	map.put(className, bytes);
+public Class defineClass(String name, byte[] bytes, Object srcForm){
+	Util.clearCache(rq, classCache);
+	Class c = defineClass(name, bytes, 0, bytes.length);
+    classCache.put(name, new SoftReference(c,rq));
+    return c;
 }
 
 protected Class<?> findClass(String name) throws ClassNotFoundException{
-	byte[] bytes = map.get(name);
-	if(bytes != null)
-		return defineClass(name, bytes, 0, bytes.length);
+    SoftReference<Class> cr = classCache.get(name);
+	if(cr != null)
+		{
+		Class c = cr.get();
+        if(c != null)
+            return c;
+		else
+	        classCache.remove(name, cr);
+		}
 	return super.findClass(name);
-	//throw new ClassNotFoundException(name);
 }
 
 public void registerConstants(int id, Object[] val){

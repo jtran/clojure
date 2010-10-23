@@ -22,22 +22,22 @@ import java.lang.*;
 
 public class LispReader{
 
-static final Symbol QUOTE = Symbol.create("quote");
-static final Symbol THE_VAR = Symbol.create("var");
-//static Symbol SYNTAX_QUOTE = Symbol.create(null, "syntax-quote");
-static Symbol UNQUOTE = Symbol.create("clojure.core", "unquote");
-static Symbol UNQUOTE_SPLICING = Symbol.create("clojure.core", "unquote-splicing");
-static Symbol CONCAT = Symbol.create("clojure.core", "concat");
-static Symbol SEQ = Symbol.create("clojure.core", "seq");
-static Symbol LIST = Symbol.create("clojure.core", "list");
-static Symbol APPLY = Symbol.create("clojure.core", "apply");
-static Symbol HASHMAP = Symbol.create("clojure.core", "hash-map");
-static Symbol HASHSET = Symbol.create("clojure.core", "hash-set");
-static Symbol VECTOR = Symbol.create("clojure.core", "vector");
-static Symbol WITH_META = Symbol.create("clojure.core", "with-meta");
-static Symbol META = Symbol.create("clojure.core", "meta");
-static Symbol DEREF = Symbol.create("clojure.core", "deref");
-//static Symbol DEREF_BANG = Symbol.create("clojure.core", "deref!");
+static final Symbol QUOTE = Symbol.intern("quote");
+static final Symbol THE_VAR = Symbol.intern("var");
+//static Symbol SYNTAX_QUOTE = Symbol.intern(null, "syntax-quote");
+static Symbol UNQUOTE = Symbol.intern("clojure.core", "unquote");
+static Symbol UNQUOTE_SPLICING = Symbol.intern("clojure.core", "unquote-splicing");
+static Symbol CONCAT = Symbol.intern("clojure.core", "concat");
+static Symbol SEQ = Symbol.intern("clojure.core", "seq");
+static Symbol LIST = Symbol.intern("clojure.core", "list");
+static Symbol APPLY = Symbol.intern("clojure.core", "apply");
+static Symbol HASHMAP = Symbol.intern("clojure.core", "hash-map");
+static Symbol HASHSET = Symbol.intern("clojure.core", "hash-set");
+static Symbol VECTOR = Symbol.intern("clojure.core", "vector");
+static Symbol WITH_META = Symbol.intern("clojure.core", "with-meta");
+static Symbol META = Symbol.intern("clojure.core", "meta");
+static Symbol DEREF = Symbol.intern("clojure.core", "deref");
+//static Symbol DEREF_BANG = Symbol.intern("clojure.core", "deref!");
 
 static IFn[] macros = new IFn[256];
 static IFn[] dispatchMacros = new IFn[256];
@@ -47,20 +47,20 @@ static Pattern symbolPat = Pattern.compile("[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/
 //static Pattern intPat = Pattern.compile("[-+]?[0-9]+\\.?");
 static Pattern intPat =
 		Pattern.compile(
-				"([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)");
+				"([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)(N)?");
 static Pattern ratioPat = Pattern.compile("([-+]?[0-9]+)/([0-9]+)");
 static Pattern floatPat = Pattern.compile("([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?");
-static final Symbol SLASH = Symbol.create("/");
-static final Symbol CLOJURE_SLASH = Symbol.create("clojure.core","/");
+static final Symbol SLASH = Symbol.intern("/");
+static final Symbol CLOJURE_SLASH = Symbol.intern("clojure.core","/");
 //static Pattern accessorPat = Pattern.compile("\\.[a-zA-Z_]\\w*");
 //static Pattern instanceMemberPat = Pattern.compile("\\.([a-zA-Z_][\\w\\.]*)\\.([a-zA-Z_]\\w*)");
 //static Pattern staticMemberPat = Pattern.compile("([a-zA-Z_][\\w\\.]*)\\.([a-zA-Z_]\\w*)");
 //static Pattern classNamePat = Pattern.compile("([a-zA-Z_][\\w\\.]*)\\.");
 
 //symbol->gensymbol
-static Var GENSYM_ENV = Var.create(null);
+static Var GENSYM_ENV = Var.create(null).setDynamic();
 //sorted-map num->gensymbol
-static Var ARG_ENV = Var.create(null);
+static Var ARG_ENV = Var.create(null).setDynamic();
 
     static
 	{
@@ -68,7 +68,7 @@ static Var ARG_ENV = Var.create(null);
 	macros[';'] = new CommentReader();
 	macros['\''] = new WrappingReader(QUOTE);
 	macros['@'] = new WrappingReader(DEREF);//new DerefReader();
-	macros['^'] = new WrappingReader(META);
+	macros['^'] = new MetaReader();
 	macros['`'] = new SyntaxQuoteReader();
 	macros['~'] = new UnquoteReader();
 	macros['('] = new ListReader();
@@ -307,7 +307,10 @@ private static Object matchSymbol(String s){
 			else
 				kns = Compiler.currentNS();
 			//auto-resolving keyword
-			return Keyword.intern(kns.name.name,ks.name);
+            if (kns != null)
+			    return Keyword.intern(kns.name.name,ks.name);
+            else
+                return null;    
 			}
 		boolean isKeyword = s.charAt(0) == ':';
 		Symbol sym = Symbol.intern(s.substring(isKeyword ? 1 : 0));
@@ -324,7 +327,11 @@ private static Object matchNumber(String s){
 	if(m.matches())
 		{
 		if(m.group(2) != null)
-			return 0;
+			{
+			if(m.group(8) != null)
+				return BigInt.ZERO;
+			return Numbers.num(0);
+			}
 		boolean negate = (m.group(1).equals("-"));
 		String n;
 		int radix = 10;
@@ -339,7 +346,13 @@ private static Object matchNumber(String s){
 		if(n == null)
 			return null;
 		BigInteger bn = new BigInteger(n, radix);
-		return Numbers.reduce(negate ? bn.negate() : bn);
+		if(negate)
+			bn = bn.negate();
+		if(m.group(8) != null)
+			return BigInt.fromBigInteger(bn);
+		return bn.bitLength() < 64 ?
+		        Numbers.num(bn.longValue())
+				: BigInt.fromBigInteger(bn);
 		}
 	m = floatPat.matcher(s);
 	if(m.matches())
@@ -351,7 +364,8 @@ private static Object matchNumber(String s){
 	m = ratioPat.matcher(s);
 	if(m.matches())
 		{
-		return Numbers.divide(new BigInteger(m.group(1)), new BigInteger(m.group(2)));
+		return Numbers.divide(Numbers.reduceBigInt(BigInt.fromBigInteger(new BigInteger(m.group(1)))),
+		                      Numbers.reduceBigInt(BigInt.fromBigInteger(new BigInteger(m.group(2)))));
 		}
 	return null;
 }
@@ -367,7 +381,7 @@ static private boolean isMacro(int ch){
 }
 
 static private boolean isTerminatingMacro(int ch){
-	return (ch != '#' && ch < macros.length && macros[ch] != null);
+	return (ch != '#' && ch != '\'' && isMacro(ch));
 }
 
 public static class RegexReader extends AFn{
@@ -491,6 +505,26 @@ public static class WrappingReader extends AFn{
 
 }
 
+public static class DeprecatedWrappingReader extends AFn{
+	final Symbol sym;
+        final String macro;
+
+	public DeprecatedWrappingReader(Symbol sym, String macro){
+		this.sym = sym;
+                this.macro = macro;
+	}
+
+	public Object invoke(Object reader, Object quote) throws Exception{
+                System.out.println("WARNING: reader macro " + macro +
+                                   " is deprecated; use " + sym.getName() +
+                                   " instead");
+		PushbackReader r = (PushbackReader) reader;
+		Object o = read(r, true, null, true);
+		return RT.list(sym, o);
+	}
+
+}
+
 public static class VarReader extends AFn{
 	public Object invoke(Object reader, Object quote) throws Exception{
 		PushbackReader r = (PushbackReader) reader;
@@ -542,7 +576,7 @@ public static class DispatchReader extends AFn{
 }
 
 static Symbol garg(int n){
-	return Symbol.intern(null, (n == -1 ? "rest" : ("p" + n)) + "__" + RT.nextID());
+	return Symbol.intern(null, (n == -1 ? "rest" : ("p" + n)) + "__" + RT.nextID() + "#");
 }
 
 public static class FnReader extends AFn{
@@ -634,8 +668,10 @@ public static class MetaReader extends AFn{
 		if(r instanceof LineNumberingPushbackReader)
 			line = ((LineNumberingPushbackReader) r).getLineNumber();
 		Object meta = read(r, true, null, true);
-		if(meta instanceof Symbol || meta instanceof Keyword || meta instanceof String)
+		if(meta instanceof Symbol || meta instanceof String)
 			meta = RT.map(RT.TAG_KEY, meta);
+		else if (meta instanceof Keyword)
+			meta = RT.map(meta, RT.T);
 		else if(!(meta instanceof IPersistentMap))
 			throw new IllegalArgumentException("Metadata must be Symbol,Keyword,String or Map");
 
@@ -649,7 +685,12 @@ public static class MetaReader extends AFn{
 				((IReference)o).resetMeta((IPersistentMap) meta);
 				return o;
 				}
-			return ((IObj) o).withMeta((IPersistentMap) meta);
+			Object ometa = RT.meta(o);
+			for(ISeq s = RT.seq(meta); s != null; s = s.next()) {
+				IMapEntry kv = (IMapEntry) s.first();
+				ometa = RT.assoc(ometa, kv.getKey(), kv.getValue());
+				}
+			return ((IObj) o).withMeta((IPersistentMap) ometa);
 			}
 		else
 			throw new IllegalArgumentException("Metadata can only be applied to IMetas");
@@ -888,7 +929,7 @@ public static class ListReader extends AFn{
 }
 
 static class CtorReader extends AFn{
-	static final Symbol cls = Symbol.create("class");
+	static final Symbol cls = Symbol.intern("class");
 
 	public Object invoke(Object reader, Object leftangle) throws Exception{
 		PushbackReader r = (PushbackReader) reader;
@@ -988,7 +1029,7 @@ public static class MapReader extends AFn{
 public static class SetReader extends AFn{
 	public Object invoke(Object reader, Object leftbracket) throws Exception{
 		PushbackReader r = (PushbackReader) reader;
-		return PersistentHashSet.create(readDelimitedList('}', r, true));
+		return PersistentHashSet.createWithCheck(readDelimitedList('}', r, true));
 	}
 
 }
@@ -1007,6 +1048,10 @@ public static class UnreadableReader extends AFn{
 }
 
 public static List readDelimitedList(char delim, PushbackReader r, boolean isRecursive) throws Exception{
+	final int firstline =
+		(r instanceof LineNumberingPushbackReader) ?
+		((LineNumberingPushbackReader) r).getLineNumber() : -1;
+
 	ArrayList a = new ArrayList();
 
 	for(; ;)
@@ -1017,7 +1062,12 @@ public static List readDelimitedList(char delim, PushbackReader r, boolean isRec
 			ch = r.read();
 
 		if(ch == -1)
-			throw new Exception("EOF while reading");
+			{
+			if(firstline < 0)
+				throw new Exception("EOF while reading");
+			else
+				throw new Exception("EOF while reading, starting at line " + firstline);
+			}
 
 		if(ch == delim)
 			break;

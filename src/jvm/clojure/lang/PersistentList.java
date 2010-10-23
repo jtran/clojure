@@ -10,16 +10,21 @@
 
 package clojure.lang;
 
+import java.io.Serializable;
 import java.util.*;
 
-public class PersistentList extends ASeq implements IPersistentList, IReduce, List, Counted{
+public class PersistentList extends ASeq implements IPersistentList, IReduce, List, Counted {
 
 private final Object _first;
 private final IPersistentList _rest;
 private final int _count;
 
-public static IFn creator = new RestFn(0){
-	protected Object doInvoke(Object args) throws Exception{
+public static IFn creator = new RestFn(){
+	final public int getRequiredArity(){
+		return 0;
+	}
+
+	final protected Object doInvoke(Object args) throws Exception{
 		if(args instanceof ArraySeq)
 			{
 			Object[] argsarray = (Object[]) ((ArraySeq) args).array;
@@ -32,6 +37,14 @@ public static IFn creator = new RestFn(0){
 		for(ISeq s = RT.seq(args); s != null; s = s.next())
 			list.add(s.first());
 		return create(list);
+	}
+
+	public IObj withMeta(IPersistentMap meta){
+		throw new UnsupportedOperationException();
+	}
+
+	public IPersistentMap meta(){
+		return null;
 	}
 };
 

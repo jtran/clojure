@@ -6,14 +6,16 @@
 ;   the terms of this license.
 ;   You must not remove this notice, or any other, from this software.
 
-(ns clojure.xml
-    (:import (org.xml.sax ContentHandler Attributes SAXException)
-             (javax.xml.parsers SAXParser SAXParserFactory)))
+(ns ^{:doc "XML reading/writing."
+       :author "Rich Hickey"}
+  clojure.xml
+  (:import (org.xml.sax ContentHandler Attributes SAXException)
+           (javax.xml.parsers SAXParser SAXParserFactory)))
 
-(def *stack*)
-(def *current*)
-(def *state*) ; :element :chars :between
-(def *sb*)
+(def ^:dynamic *stack*)
+(def ^:dynamic *current*)
+(def ^:dynamic *state*) ; :element :chars :between
+(def ^:dynamic *sb*)
 
 (defstruct element :tag :attrs :content)
 
@@ -26,22 +28,22 @@
                        (assoc e :content (conj (or (:content e) []) c)))
         push-chars (fn []
                      (when (and (= *state* :chars)
-                                (some (complement #(. Character (isWhitespace %))) (str *sb*)))
+                                (some (complement #(Character/isWhitespace (char %))) (str *sb*)))
                        (set! *current* (push-content *current* (str *sb*)))))]
     (new clojure.lang.XMLHandler
          (proxy [ContentHandler] []
-           (startElement [uri local-name q-name #^Attributes atts]
+           (startElement [uri local-name q-name ^Attributes atts]
              (let [attrs (fn [ret i]
                            (if (neg? i)
                              ret
-                             (recur (assoc ret 
-                                           (. clojure.lang.Keyword (intern (symbol (. atts (getQName i)))))
-                                           (. atts (getValue i)))
+                             (recur (assoc ret
+                                           (clojure.lang.Keyword/intern (symbol (.getQName atts i)))
+                                           (.getValue atts (int i)))
                                     (dec i))))
-                   e (struct element 
+                   e (struct element
                              (. clojure.lang.Keyword (intern (symbol q-name)))
-                             (when (pos? (. atts (getLength)))
-                               (attrs {} (dec (. atts (getLength))))))]
+                             (when (pos? (.getLength atts))
+                               (attrs {} (dec (.getLength atts)))))]
                (push-chars)
                (set! *stack* (conj *stack* *current*))
                (set! *current* e)
@@ -53,11 +55,11 @@
              (set! *stack* (pop *stack*))
              (set! *state* :between)
              nil)
-           (characters [ch start length]
+           (characters [^chars ch start length]
              (when-not (= *state* :chars)
                (set! *sb* (new StringBuilder)))
-             (let [#^StringBuilder sb *sb*]
-               (. sb (append ch start length))
+             (let [^StringBuilder sb *sb*]
+               (.append sb ch (int start) (int length))
                (set! *state* :chars))
              nil)
            (setDocumentLocator [locator])
@@ -80,6 +82,7 @@
   attrs, and content. Other parsers can be supplied by passing
   startparse, a fn taking a source and a ContentHandler and returning
   a parser"
+  {:added "1.0"}
   ([s] (parse s startparse-sax))
   ([s startparse]
     (binding [*stack* nil

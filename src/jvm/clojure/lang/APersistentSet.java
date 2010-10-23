@@ -12,16 +12,16 @@
 
 package clojure.lang;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Set;
 
-public abstract class APersistentSet extends AFn implements IPersistentSet, Collection, Set{
+public abstract class APersistentSet extends AFn implements IPersistentSet, Collection, Set, Serializable {
 int _hash = -1;
 final IPersistentMap impl;
 
-protected APersistentSet(IPersistentMap meta, IPersistentMap impl){
-	super(meta);
+protected APersistentSet(IPersistentMap impl){
 	this.impl = impl;
 }
 
@@ -50,6 +50,7 @@ public Object invoke(Object arg1) throws Exception{
 }
 
 public boolean equals(Object obj){
+	if(this == obj) return true;
 	if(!(obj instanceof Set))
 		return false;
 	Set m = (Set) obj;

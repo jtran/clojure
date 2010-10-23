@@ -12,7 +12,9 @@
 
 package clojure.lang;
 
-public final class ArrayChunk implements IChunk{
+import java.io.Serializable;
+
+public final class ArrayChunk implements IChunk, Serializable {
 
 final Object[] array;
 final int off;
@@ -34,6 +36,12 @@ public ArrayChunk(Object[] array, int off, int end){
 
 public Object nth(int i){
 	return array[off + i];
+}
+
+public Object nth(int i, Object notFound){
+	if(i >= 0 && i < count())
+		return nth(i);
+	return notFound;
 }
 
 public int count(){

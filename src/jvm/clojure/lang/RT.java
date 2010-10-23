@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.Callable;
 import java.util.*;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.io.*;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
@@ -28,190 +29,200 @@ import java.nio.charset.Charset;
 
 public class RT{
 
-static final public Boolean T = Boolean.TRUE;//Keyword.intern(Symbol.create(null, "t"));
-static final public Boolean F = Boolean.FALSE;//Keyword.intern(Symbol.create(null, "t"));
+static final public Boolean T = Boolean.TRUE;//Keyword.intern(Symbol.intern(null, "t"));
+static final public Boolean F = Boolean.FALSE;//Keyword.intern(Symbol.intern(null, "t"));
 static final public String LOADER_SUFFIX = "__init";
 
 //simple-symbol->class
 final static IPersistentMap DEFAULT_IMPORTS = map(
-//												  Symbol.create("RT"), "clojure.lang.RT",
-//                                                  Symbol.create("Num"), "clojure.lang.Num",
-//                                                  Symbol.create("Symbol"), "clojure.lang.Symbol",
-//                                                  Symbol.create("Keyword"), "clojure.lang.Keyword",
-//                                                  Symbol.create("Var"), "clojure.lang.Var",
-//                                                  Symbol.create("Ref"), "clojure.lang.Ref",
-//                                                  Symbol.create("IFn"), "clojure.lang.IFn",
-//                                                  Symbol.create("IObj"), "clojure.lang.IObj",
-//                                                  Symbol.create("ISeq"), "clojure.lang.ISeq",
-//                                                  Symbol.create("IPersistentCollection"),
+//												  Symbol.intern("RT"), "clojure.lang.RT",
+//                                                  Symbol.intern("Num"), "clojure.lang.Num",
+//                                                  Symbol.intern("Symbol"), "clojure.lang.Symbol",
+//                                                  Symbol.intern("Keyword"), "clojure.lang.Keyword",
+//                                                  Symbol.intern("Var"), "clojure.lang.Var",
+//                                                  Symbol.intern("Ref"), "clojure.lang.Ref",
+//                                                  Symbol.intern("IFn"), "clojure.lang.IFn",
+//                                                  Symbol.intern("IObj"), "clojure.lang.IObj",
+//                                                  Symbol.intern("ISeq"), "clojure.lang.ISeq",
+//                                                  Symbol.intern("IPersistentCollection"),
 //                                                  "clojure.lang.IPersistentCollection",
-//                                                  Symbol.create("IPersistentMap"), "clojure.lang.IPersistentMap",
-//                                                  Symbol.create("IPersistentList"), "clojure.lang.IPersistentList",
-//                                                  Symbol.create("IPersistentVector"), "clojure.lang.IPersistentVector",
-Symbol.create("Boolean"), Boolean.class,
-Symbol.create("Byte"), Byte.class,
-Symbol.create("Character"), Character.class,
-Symbol.create("Class"), Class.class,
-Symbol.create("ClassLoader"), ClassLoader.class,
-Symbol.create("Compiler"), Compiler.class,
-Symbol.create("Double"), Double.class,
-Symbol.create("Enum"), Enum.class,
-Symbol.create("Float"), Float.class,
-Symbol.create("InheritableThreadLocal"), InheritableThreadLocal.class,
-Symbol.create("Integer"), Integer.class,
-Symbol.create("Long"), Long.class,
-Symbol.create("Math"), Math.class,
-Symbol.create("Number"), Number.class,
-Symbol.create("Object"), Object.class,
-Symbol.create("Package"), Package.class,
-Symbol.create("Process"), Process.class,
-Symbol.create("ProcessBuilder"), ProcessBuilder.class,
-Symbol.create("Runtime"), Runtime.class,
-Symbol.create("RuntimePermission"), RuntimePermission.class,
-Symbol.create("SecurityManager"), SecurityManager.class,
-Symbol.create("Short"), Short.class,
-Symbol.create("StackTraceElement"), StackTraceElement.class,
-Symbol.create("StrictMath"), StrictMath.class,
-Symbol.create("String"), String.class,
-Symbol.create("StringBuffer"), StringBuffer.class,
-Symbol.create("StringBuilder"), StringBuilder.class,
-Symbol.create("System"), System.class,
-Symbol.create("Thread"), Thread.class,
-Symbol.create("ThreadGroup"), ThreadGroup.class,
-Symbol.create("ThreadLocal"), ThreadLocal.class,
-Symbol.create("Throwable"), Throwable.class,
-Symbol.create("Void"), Void.class,
-Symbol.create("Appendable"), Appendable.class,
-Symbol.create("CharSequence"), CharSequence.class,
-Symbol.create("Cloneable"), Cloneable.class,
-Symbol.create("Comparable"), Comparable.class,
-Symbol.create("Iterable"), Iterable.class,
-Symbol.create("Readable"), Readable.class,
-Symbol.create("Runnable"), Runnable.class,
-Symbol.create("Callable"), Callable.class,
-Symbol.create("BigInteger"), BigInteger.class,
-Symbol.create("BigDecimal"), BigDecimal.class,
-Symbol.create("ArithmeticException"), ArithmeticException.class,
-Symbol.create("ArrayIndexOutOfBoundsException"), ArrayIndexOutOfBoundsException.class,
-Symbol.create("ArrayStoreException"), ArrayStoreException.class,
-Symbol.create("ClassCastException"), ClassCastException.class,
-Symbol.create("ClassNotFoundException"), ClassNotFoundException.class,
-Symbol.create("CloneNotSupportedException"), CloneNotSupportedException.class,
-Symbol.create("EnumConstantNotPresentException"), EnumConstantNotPresentException.class,
-Symbol.create("Exception"), Exception.class,
-Symbol.create("IllegalAccessException"), IllegalAccessException.class,
-Symbol.create("IllegalArgumentException"), IllegalArgumentException.class,
-Symbol.create("IllegalMonitorStateException"), IllegalMonitorStateException.class,
-Symbol.create("IllegalStateException"), IllegalStateException.class,
-Symbol.create("IllegalThreadStateException"), IllegalThreadStateException.class,
-Symbol.create("IndexOutOfBoundsException"), IndexOutOfBoundsException.class,
-Symbol.create("InstantiationException"), InstantiationException.class,
-Symbol.create("InterruptedException"), InterruptedException.class,
-Symbol.create("NegativeArraySizeException"), NegativeArraySizeException.class,
-Symbol.create("NoSuchFieldException"), NoSuchFieldException.class,
-Symbol.create("NoSuchMethodException"), NoSuchMethodException.class,
-Symbol.create("NullPointerException"), NullPointerException.class,
-Symbol.create("NumberFormatException"), NumberFormatException.class,
-Symbol.create("RuntimeException"), RuntimeException.class,
-Symbol.create("SecurityException"), SecurityException.class,
-Symbol.create("StringIndexOutOfBoundsException"), StringIndexOutOfBoundsException.class,
-Symbol.create("TypeNotPresentException"), TypeNotPresentException.class,
-Symbol.create("UnsupportedOperationException"), UnsupportedOperationException.class,
-Symbol.create("AbstractMethodError"), AbstractMethodError.class,
-Symbol.create("AssertionError"), AssertionError.class,
-Symbol.create("ClassCircularityError"), ClassCircularityError.class,
-Symbol.create("ClassFormatError"), ClassFormatError.class,
-Symbol.create("Error"), Error.class,
-Symbol.create("ExceptionInInitializerError"), ExceptionInInitializerError.class,
-Symbol.create("IllegalAccessError"), IllegalAccessError.class,
-Symbol.create("IncompatibleClassChangeError"), IncompatibleClassChangeError.class,
-Symbol.create("InstantiationError"), InstantiationError.class,
-Symbol.create("InternalError"), InternalError.class,
-Symbol.create("LinkageError"), LinkageError.class,
-Symbol.create("NoClassDefFoundError"), NoClassDefFoundError.class,
-Symbol.create("NoSuchFieldError"), NoSuchFieldError.class,
-Symbol.create("NoSuchMethodError"), NoSuchMethodError.class,
-Symbol.create("OutOfMemoryError"), OutOfMemoryError.class,
-Symbol.create("StackOverflowError"), StackOverflowError.class,
-Symbol.create("ThreadDeath"), ThreadDeath.class,
-Symbol.create("UnknownError"), UnknownError.class,
-Symbol.create("UnsatisfiedLinkError"), UnsatisfiedLinkError.class,
-Symbol.create("UnsupportedClassVersionError"), UnsupportedClassVersionError.class,
-Symbol.create("VerifyError"), VerifyError.class,
-Symbol.create("VirtualMachineError"), VirtualMachineError.class,
-Symbol.create("Thread$UncaughtExceptionHandler"), Thread.UncaughtExceptionHandler.class,
-Symbol.create("Thread$State"), Thread.State.class,
-Symbol.create("Deprecated"), Deprecated.class,
-Symbol.create("Override"), Override.class,
-Symbol.create("SuppressWarnings"), SuppressWarnings.class
+//                                                  Symbol.intern("IPersistentMap"), "clojure.lang.IPersistentMap",
+//                                                  Symbol.intern("IPersistentList"), "clojure.lang.IPersistentList",
+//                                                  Symbol.intern("IPersistentVector"), "clojure.lang.IPersistentVector",
+Symbol.intern("Boolean"), Boolean.class,
+Symbol.intern("Byte"), Byte.class,
+Symbol.intern("Character"), Character.class,
+Symbol.intern("Class"), Class.class,
+Symbol.intern("ClassLoader"), ClassLoader.class,
+Symbol.intern("Compiler"), Compiler.class,
+Symbol.intern("Double"), Double.class,
+Symbol.intern("Enum"), Enum.class,
+Symbol.intern("Float"), Float.class,
+Symbol.intern("InheritableThreadLocal"), InheritableThreadLocal.class,
+Symbol.intern("Integer"), Integer.class,
+Symbol.intern("Long"), Long.class,
+Symbol.intern("Math"), Math.class,
+Symbol.intern("Number"), Number.class,
+Symbol.intern("Object"), Object.class,
+Symbol.intern("Package"), Package.class,
+Symbol.intern("Process"), Process.class,
+Symbol.intern("ProcessBuilder"), ProcessBuilder.class,
+Symbol.intern("Runtime"), Runtime.class,
+Symbol.intern("RuntimePermission"), RuntimePermission.class,
+Symbol.intern("SecurityManager"), SecurityManager.class,
+Symbol.intern("Short"), Short.class,
+Symbol.intern("StackTraceElement"), StackTraceElement.class,
+Symbol.intern("StrictMath"), StrictMath.class,
+Symbol.intern("String"), String.class,
+Symbol.intern("StringBuffer"), StringBuffer.class,
+Symbol.intern("StringBuilder"), StringBuilder.class,
+Symbol.intern("System"), System.class,
+Symbol.intern("Thread"), Thread.class,
+Symbol.intern("ThreadGroup"), ThreadGroup.class,
+Symbol.intern("ThreadLocal"), ThreadLocal.class,
+Symbol.intern("Throwable"), Throwable.class,
+Symbol.intern("Void"), Void.class,
+Symbol.intern("Appendable"), Appendable.class,
+Symbol.intern("CharSequence"), CharSequence.class,
+Symbol.intern("Cloneable"), Cloneable.class,
+Symbol.intern("Comparable"), Comparable.class,
+Symbol.intern("Iterable"), Iterable.class,
+Symbol.intern("Readable"), Readable.class,
+Symbol.intern("Runnable"), Runnable.class,
+Symbol.intern("Callable"), Callable.class,
+Symbol.intern("BigInteger"), BigInteger.class,
+Symbol.intern("BigDecimal"), BigDecimal.class,
+Symbol.intern("ArithmeticException"), ArithmeticException.class,
+Symbol.intern("ArrayIndexOutOfBoundsException"), ArrayIndexOutOfBoundsException.class,
+Symbol.intern("ArrayStoreException"), ArrayStoreException.class,
+Symbol.intern("ClassCastException"), ClassCastException.class,
+Symbol.intern("ClassNotFoundException"), ClassNotFoundException.class,
+Symbol.intern("CloneNotSupportedException"), CloneNotSupportedException.class,
+Symbol.intern("EnumConstantNotPresentException"), EnumConstantNotPresentException.class,
+Symbol.intern("Exception"), Exception.class,
+Symbol.intern("IllegalAccessException"), IllegalAccessException.class,
+Symbol.intern("IllegalArgumentException"), IllegalArgumentException.class,
+Symbol.intern("IllegalMonitorStateException"), IllegalMonitorStateException.class,
+Symbol.intern("IllegalStateException"), IllegalStateException.class,
+Symbol.intern("IllegalThreadStateException"), IllegalThreadStateException.class,
+Symbol.intern("IndexOutOfBoundsException"), IndexOutOfBoundsException.class,
+Symbol.intern("InstantiationException"), InstantiationException.class,
+Symbol.intern("InterruptedException"), InterruptedException.class,
+Symbol.intern("NegativeArraySizeException"), NegativeArraySizeException.class,
+Symbol.intern("NoSuchFieldException"), NoSuchFieldException.class,
+Symbol.intern("NoSuchMethodException"), NoSuchMethodException.class,
+Symbol.intern("NullPointerException"), NullPointerException.class,
+Symbol.intern("NumberFormatException"), NumberFormatException.class,
+Symbol.intern("RuntimeException"), RuntimeException.class,
+Symbol.intern("SecurityException"), SecurityException.class,
+Symbol.intern("StringIndexOutOfBoundsException"), StringIndexOutOfBoundsException.class,
+Symbol.intern("TypeNotPresentException"), TypeNotPresentException.class,
+Symbol.intern("UnsupportedOperationException"), UnsupportedOperationException.class,
+Symbol.intern("AbstractMethodError"), AbstractMethodError.class,
+Symbol.intern("AssertionError"), AssertionError.class,
+Symbol.intern("ClassCircularityError"), ClassCircularityError.class,
+Symbol.intern("ClassFormatError"), ClassFormatError.class,
+Symbol.intern("Error"), Error.class,
+Symbol.intern("ExceptionInInitializerError"), ExceptionInInitializerError.class,
+Symbol.intern("IllegalAccessError"), IllegalAccessError.class,
+Symbol.intern("IncompatibleClassChangeError"), IncompatibleClassChangeError.class,
+Symbol.intern("InstantiationError"), InstantiationError.class,
+Symbol.intern("InternalError"), InternalError.class,
+Symbol.intern("LinkageError"), LinkageError.class,
+Symbol.intern("NoClassDefFoundError"), NoClassDefFoundError.class,
+Symbol.intern("NoSuchFieldError"), NoSuchFieldError.class,
+Symbol.intern("NoSuchMethodError"), NoSuchMethodError.class,
+Symbol.intern("OutOfMemoryError"), OutOfMemoryError.class,
+Symbol.intern("StackOverflowError"), StackOverflowError.class,
+Symbol.intern("ThreadDeath"), ThreadDeath.class,
+Symbol.intern("UnknownError"), UnknownError.class,
+Symbol.intern("UnsatisfiedLinkError"), UnsatisfiedLinkError.class,
+Symbol.intern("UnsupportedClassVersionError"), UnsupportedClassVersionError.class,
+Symbol.intern("VerifyError"), VerifyError.class,
+Symbol.intern("VirtualMachineError"), VirtualMachineError.class,
+Symbol.intern("Thread$UncaughtExceptionHandler"), Thread.UncaughtExceptionHandler.class,
+Symbol.intern("Thread$State"), Thread.State.class,
+Symbol.intern("Deprecated"), Deprecated.class,
+Symbol.intern("Override"), Override.class,
+Symbol.intern("SuppressWarnings"), SuppressWarnings.class
 
-//                                                  Symbol.create("Collection"), "java.util.Collection",
-//                                                  Symbol.create("Comparator"), "java.util.Comparator",
-//                                                  Symbol.create("Enumeration"), "java.util.Enumeration",
-//                                                  Symbol.create("EventListener"), "java.util.EventListener",
-//                                                  Symbol.create("Formattable"), "java.util.Formattable",
-//                                                  Symbol.create("Iterator"), "java.util.Iterator",
-//                                                  Symbol.create("List"), "java.util.List",
-//                                                  Symbol.create("ListIterator"), "java.util.ListIterator",
-//                                                  Symbol.create("Map"), "java.util.Map",
-//                                                  Symbol.create("Map$Entry"), "java.util.Map$Entry",
-//                                                  Symbol.create("Observer"), "java.util.Observer",
-//                                                  Symbol.create("Queue"), "java.util.Queue",
-//                                                  Symbol.create("RandomAccess"), "java.util.RandomAccess",
-//                                                  Symbol.create("Set"), "java.util.Set",
-//                                                  Symbol.create("SortedMap"), "java.util.SortedMap",
-//                                                  Symbol.create("SortedSet"), "java.util.SortedSet"
+//                                                  Symbol.intern("Collection"), "java.util.Collection",
+//                                                  Symbol.intern("Comparator"), "java.util.Comparator",
+//                                                  Symbol.intern("Enumeration"), "java.util.Enumeration",
+//                                                  Symbol.intern("EventListener"), "java.util.EventListener",
+//                                                  Symbol.intern("Formattable"), "java.util.Formattable",
+//                                                  Symbol.intern("Iterator"), "java.util.Iterator",
+//                                                  Symbol.intern("List"), "java.util.List",
+//                                                  Symbol.intern("ListIterator"), "java.util.ListIterator",
+//                                                  Symbol.intern("Map"), "java.util.Map",
+//                                                  Symbol.intern("Map$Entry"), "java.util.Map$Entry",
+//                                                  Symbol.intern("Observer"), "java.util.Observer",
+//                                                  Symbol.intern("Queue"), "java.util.Queue",
+//                                                  Symbol.intern("RandomAccess"), "java.util.RandomAccess",
+//                                                  Symbol.intern("Set"), "java.util.Set",
+//                                                  Symbol.intern("SortedMap"), "java.util.SortedMap",
+//                                                  Symbol.intern("SortedSet"), "java.util.SortedSet"
 );
 
 // single instance of UTF-8 Charset, so as to avoid catching UnsupportedCharsetExceptions everywhere
 static public Charset UTF8 = Charset.forName("UTF-8");
 
-static public final Namespace CLOJURE_NS = Namespace.findOrCreate(Symbol.create("clojure.core"));
-//static final Namespace USER_NS = Namespace.findOrCreate(Symbol.create("user"));
+static public final Namespace CLOJURE_NS = Namespace.findOrCreate(Symbol.intern("clojure.core"));
+//static final Namespace USER_NS = Namespace.findOrCreate(Symbol.intern("user"));
 final static public Var OUT =
-		Var.intern(CLOJURE_NS, Symbol.create("*out*"), new OutputStreamWriter(System.out));
+		Var.intern(CLOJURE_NS, Symbol.intern("*out*"), new OutputStreamWriter(System.out)).setDynamic();
 final static public Var IN =
-		Var.intern(CLOJURE_NS, Symbol.create("*in*"),
-		           new LineNumberingPushbackReader(new InputStreamReader(System.in)));
+		Var.intern(CLOJURE_NS, Symbol.intern("*in*"),
+		           new LineNumberingPushbackReader(new InputStreamReader(System.in))).setDynamic();
 final static public Var ERR =
-		Var.intern(CLOJURE_NS, Symbol.create("*err*"),
-		           new PrintWriter(new OutputStreamWriter(System.err), true));
+		Var.intern(CLOJURE_NS, Symbol.intern("*err*"),
+		           new PrintWriter(new OutputStreamWriter(System.err), true)).setDynamic();
 final static Keyword TAG_KEY = Keyword.intern(null, "tag");
-final static public Var AGENT = Var.intern(CLOJURE_NS, Symbol.create("*agent*"), null);
-final static public Var READEVAL = Var.intern(CLOJURE_NS, Symbol.create("*read-eval*"), T);
-final static public Var ASSERT = Var.intern(CLOJURE_NS, Symbol.create("*assert*"), T);
-final static public Var MACRO_META = Var.intern(CLOJURE_NS, Symbol.create("*macro-meta*"), null);
-final static public Var MATH_CONTEXT = Var.intern(CLOJURE_NS, Symbol.create("*math-context*"), null);
+final static public Var AGENT = Var.intern(CLOJURE_NS, Symbol.intern("*agent*"), null).setDynamic();
+final static public Var READEVAL = Var.intern(CLOJURE_NS, Symbol.intern("*read-eval*"), T).setDynamic();
+final static public Var ASSERT = Var.intern(CLOJURE_NS, Symbol.intern("*assert*"), T).setDynamic();
+final static public Var MATH_CONTEXT = Var.intern(CLOJURE_NS, Symbol.intern("*math-context*"), null).setDynamic();
 static Keyword LINE_KEY = Keyword.intern(null, "line");
 static Keyword FILE_KEY = Keyword.intern(null, "file");
+static Keyword DECLARED_KEY = Keyword.intern(null, "declared");
+static Keyword DOC_KEY = Keyword.intern(null, "doc");
 final static public Var USE_CONTEXT_CLASSLOADER =
-		Var.intern(CLOJURE_NS, Symbol.create("*use-context-classloader*"), T);
-//final static public Var CURRENT_MODULE = Var.intern(Symbol.create("clojure.core", "current-module"),
+		Var.intern(CLOJURE_NS, Symbol.intern("*use-context-classloader*"), T).setDynamic();
+//final static public Var CURRENT_MODULE = Var.intern(Symbol.intern("clojure.core", "current-module"),
 //                                                    Module.findOrCreateModule("clojure/user"));
 
-final static Symbol LOAD_FILE = Symbol.create("load-file");
-final static Symbol IN_NAMESPACE = Symbol.create("in-ns");
-final static Symbol NAMESPACE = Symbol.create("ns");
-static final Symbol IDENTICAL = Symbol.create("identical?");
-final static Var CMD_LINE_ARGS = Var.intern(CLOJURE_NS, Symbol.create("*command-line-args*"), null);
+final static Symbol LOAD_FILE = Symbol.intern("load-file");
+final static Symbol IN_NAMESPACE = Symbol.intern("in-ns");
+final static Symbol NAMESPACE = Symbol.intern("ns");
+static final Symbol IDENTICAL = Symbol.intern("identical?");
+final static Var CMD_LINE_ARGS = Var.intern(CLOJURE_NS, Symbol.intern("*command-line-args*"), null).setDynamic();
 //symbol
-final public static Var CURRENT_NS = Var.intern(CLOJURE_NS, Symbol.create("*ns*"),
-                                                CLOJURE_NS);
+final public static Var CURRENT_NS = Var.intern(CLOJURE_NS, Symbol.intern("*ns*"),
+                                                CLOJURE_NS).setDynamic();
 
-final static Var FLUSH_ON_NEWLINE = Var.intern(CLOJURE_NS, Symbol.create("*flush-on-newline*"), T);
-final static Var PRINT_META = Var.intern(CLOJURE_NS, Symbol.create("*print-meta*"), F);
-final static Var PRINT_READABLY = Var.intern(CLOJURE_NS, Symbol.create("*print-readably*"), T);
-final static Var PRINT_DUP = Var.intern(CLOJURE_NS, Symbol.create("*print-dup*"), F);
-final static Var WARN_ON_REFLECTION = Var.intern(CLOJURE_NS, Symbol.create("*warn-on-reflection*"), F);
-final static Var ALLOW_UNRESOLVED_VARS = Var.intern(CLOJURE_NS, Symbol.create("*allow-unresolved-vars*"), F);
+final static Var FLUSH_ON_NEWLINE = Var.intern(CLOJURE_NS, Symbol.intern("*flush-on-newline*"), T).setDynamic();
+final static Var PRINT_META = Var.intern(CLOJURE_NS, Symbol.intern("*print-meta*"), F).setDynamic();
+final static Var PRINT_READABLY = Var.intern(CLOJURE_NS, Symbol.intern("*print-readably*"), T).setDynamic();
+final static Var PRINT_DUP = Var.intern(CLOJURE_NS, Symbol.intern("*print-dup*"), F).setDynamic();
+final static Var WARN_ON_REFLECTION = Var.intern(CLOJURE_NS, Symbol.intern("*warn-on-reflection*"), F).setDynamic();
+final static Var ALLOW_UNRESOLVED_VARS = Var.intern(CLOJURE_NS, Symbol.intern("*allow-unresolved-vars*"), F).setDynamic();
 
-final static Var IN_NS_VAR = Var.intern(CLOJURE_NS, Symbol.create("in-ns"), F);
-final static Var NS_VAR = Var.intern(CLOJURE_NS, Symbol.create("ns"), F);
-static final Var PRINT_INITIALIZED = Var.intern(CLOJURE_NS, Symbol.create("print-initialized"));
-static final Var PR_ON = Var.intern(CLOJURE_NS, Symbol.create("pr-on"));
-//final static Var IMPORTS = Var.intern(CLOJURE_NS, Symbol.create("*imports*"), DEFAULT_IMPORTS);
+final static Var IN_NS_VAR = Var.intern(CLOJURE_NS, Symbol.intern("in-ns"), F);
+final static Var NS_VAR = Var.intern(CLOJURE_NS, Symbol.intern("ns"), F);
+static final Var PRINT_INITIALIZED = Var.intern(CLOJURE_NS, Symbol.intern("print-initialized"));
+static final Var PR_ON = Var.intern(CLOJURE_NS, Symbol.intern("pr-on"));
+//final static Var IMPORTS = Var.intern(CLOJURE_NS, Symbol.intern("*imports*"), DEFAULT_IMPORTS);
 final static IFn inNamespace = new AFn(){
 	public Object invoke(Object arg1) throws Exception{
+		Symbol nsname = (Symbol) arg1;
+		Namespace ns = Namespace.findOrCreate(nsname);
+		CURRENT_NS.set(ns);
+		return ns;
+	}
+};
+
+final static IFn bootNamespace = new AFn(){
+	public Object invoke(Object __form, Object __env,Object arg1) throws Exception{
 		Symbol nsname = (Symbol) arg1;
 		Namespace ns = Namespace.findOrCreate(nsname);
 		CURRENT_NS.set(ns);
@@ -229,12 +240,30 @@ public static List<String> processCommandLine(String[] args){
 	return arglist;
 }
 
+// duck typing stderr plays nice with e.g. swank 
+public static PrintWriter errPrintWriter(){
+    Writer w = (Writer) ERR.deref();
+    if (w instanceof PrintWriter) {
+        return (PrintWriter) w;
+    } else {
+        return new PrintWriter(w);
+    }
+}
+
 static public final Object[] EMPTY_ARRAY = new Object[]{};
-static public final Comparator DEFAULT_COMPARATOR = new Comparator(){
-	public int compare(Object o1, Object o2){
+static public final Comparator DEFAULT_COMPARATOR = new DefaultComparator();
+
+private static final class DefaultComparator implements Comparator, Serializable {
+    public int compare(Object o1, Object o2){
 		return Util.compare(o1, o2);
 	}
-};
+
+    private Object readResolve() throws ObjectStreamException {
+        // ensures that we aren't hanging onto a new default comparator for every
+        // sorted set, etc., we deserialize
+        return DEFAULT_COMPARATOR;
+    }
+}
 
 static AtomicInteger id = new AtomicInteger(1);
 
@@ -247,29 +276,19 @@ static public void addURL(Object url) throws Exception{
 		throw new IllegalAccessError("Context classloader is not a DynamicClassLoader");
 }
 
-final static public Object EOS = new Object();
-final static public Object SKIP = new Object();
-static final public IFn EMPTY_GEN = new AFn(){
-    synchronized public Object invoke() throws Exception {
-        return EOS;
-    }
-};
-
 static{
-	Keyword dockw = Keyword.intern(null, "doc");
 	Keyword arglistskw = Keyword.intern(null, "arglists");
-	Symbol namesym = Symbol.create("name");
-	OUT.setTag(Symbol.create("java.io.Writer"));
-	CURRENT_NS.setTag(Symbol.create("clojure.lang.Namespace"));
-	AGENT.setMeta(map(dockw, "The agent currently running an action on this thread, else nil"));
-	AGENT.setTag(Symbol.create("clojure.lang.Agent"));
-	MATH_CONTEXT.setTag(Symbol.create("java.math.MathContext"));
-	//during bootstrap ns same as in-ns
-	Var nv = Var.intern(CLOJURE_NS, NAMESPACE, inNamespace);
+	Symbol namesym = Symbol.intern("name");
+	OUT.setTag(Symbol.intern("java.io.Writer"));
+	CURRENT_NS.setTag(Symbol.intern("clojure.lang.Namespace"));
+	AGENT.setMeta(map(DOC_KEY, "The agent currently running an action on this thread, else nil"));
+	AGENT.setTag(Symbol.intern("clojure.lang.Agent"));
+	MATH_CONTEXT.setTag(Symbol.intern("java.math.MathContext"));
+	Var nv = Var.intern(CLOJURE_NS, NAMESPACE, bootNamespace);
 	nv.setMacro();
 	Var v;
 	v = Var.intern(CLOJURE_NS, IN_NAMESPACE, inNamespace);
-	v.setMeta(map(dockw, "Sets *ns* to the namespace named by the symbol, creating it if needed.",
+	v.setMeta(map(DOC_KEY, "Sets *ns* to the namespace named by the symbol, creating it if needed.",
 	              arglistskw, list(vector(namesym))));
 	v = Var.intern(CLOJURE_NS, LOAD_FILE,
 	               new AFn(){
@@ -277,17 +296,8 @@ static{
 			               return Compiler.loadFile((String) arg1);
 		               }
 	               });
-	v.setMeta(map(dockw, "Sequentially read and evaluate the set of forms contained in the file.",
+	v.setMeta(map(DOC_KEY, "Sequentially read and evaluate the set of forms contained in the file.",
 	              arglistskw, list(vector(namesym))));
-	v = Var.intern(CLOJURE_NS, IDENTICAL,
-	               new AFn(){
-		               public Object invoke(Object arg1, Object arg2)
-				               throws Exception{
-			               return arg1 == arg2 ? RT.T : RT.F;
-		               }
-	               });
-	v.setMeta(map(dockw, "Tests if 2 arguments are the same object",
-	              arglistskw, list(vector(Symbol.create("x"), Symbol.create("y")))));
 	try {
 		doInit();
 	}
@@ -339,7 +349,7 @@ public static void loadResourceScript(Class c, String name, boolean failIfNotFou
 }
 
 static public void init() throws Exception{
-	((PrintWriter) RT.ERR.deref()).println("No need to call RT.init() anymore");
+	RT.errPrintWriter().println("No need to call RT.init() anymore");
 }
 
 static public long lastModified(URL url, String libfile) throws Exception{
@@ -404,16 +414,13 @@ static public void load(String scriptbase, boolean failIfNotFound) throws Except
 
 static void doInit() throws Exception{
 	load("clojure/core");
-	load("clojure/zip", false);
-	load("clojure/xml", false);
-	load("clojure/set", false);
 
 	Var.pushThreadBindings(
 			RT.map(CURRENT_NS, CURRENT_NS.deref(),
 			       WARN_ON_REFLECTION, WARN_ON_REFLECTION.deref()));
 	try {
-		Symbol USER = Symbol.create("user");
-		Symbol CLOJURE = Symbol.create("clojure.core");
+		Symbol USER = Symbol.intern("user");
+		Symbol CLOJURE = Symbol.intern("clojure.core");
 
 		Var in_ns = var("clojure.core", "in-ns");
 		Var refer = var("clojure.core", "refer");
@@ -442,24 +449,6 @@ static public ISeq seq(Object coll){
 		return seqFrom(coll);
 }
 
-static public Stream stream(final Object coll) throws Exception{
-	if(coll == null)
-		return new Stream(EMPTY_GEN);
-	else if(coll instanceof Streamable)
-		return ((Streamable) coll).stream();
-	else if(coll instanceof Fn)
-		return new Stream((IFn) coll);
-	else if(coll instanceof Iterable)
-		return new Stream(new IteratorStream(((Iterable) coll).iterator()));
-	else if(coll.getClass().isArray())
-		return ArrayStream.createFromObject(coll);
-	else if(coll instanceof String)
-		return ArrayStream.createFromObject(((String) coll).toCharArray());
-	else
-	    return new Stream(new ASeq.Src(RT.seq(coll)));
-
-}
-
 static ISeq seqFrom(Object coll){
 	if(coll instanceof Seqable)
 		return ((Seqable) coll).seq();
@@ -469,14 +458,14 @@ static ISeq seqFrom(Object coll){
 		return IteratorSeq.create(((Iterable) coll).iterator());
 	else if(coll.getClass().isArray())
 		return ArraySeq.createFromObject(coll);
-	else if(coll instanceof String)
-		return StringSeq.create((String) coll);
+	else if(coll instanceof CharSequence)
+		return StringSeq.create((CharSequence) coll);
 	else if(coll instanceof Map)
 		return seq(((Map) coll).entrySet());
 	else {
 		Class c = coll.getClass();
 		Class sc = c.getSuperclass();
-		throw new IllegalArgumentException("Don't know how to create ISeq from: " + c.getSimpleName());
+		throw new IllegalArgumentException("Don't know how to create ISeq from: " + c.getName());
 	}
 }
 
@@ -494,15 +483,13 @@ static public IPersistentMap meta(Object x){
 	return null;
 }
 
-public static int count(Counted o){
-	if(o != null)
-		return o.count();
-	return 0;
-}
-
 public static int count(Object o){
 	if(o instanceof Counted)
 		return ((Counted) o).count();
+	return countFrom(Util.ret1(o, o = null));
+}
+
+static int countFrom(Object o){
 	if(o == null)
 		return 0;
 	else if(o instanceof IPersistentCollection) {
@@ -516,8 +503,8 @@ public static int count(Object o){
 		}
 		return i;
 	}
-	else if(o instanceof String)
-		return ((String) o).length();
+	else if(o instanceof CharSequence)
+		return ((CharSequence) o).length();
 	else if(o instanceof Collection)
 		return ((Collection) o).size();
 	else if(o instanceof Map)
@@ -613,10 +600,14 @@ static public Object pop(Object x){
 }
 
 static public Object get(Object coll, Object key){
+	if(coll instanceof ILookup)
+		return ((ILookup) coll).valAt(key);
+	return getFrom(coll, key);
+}
+
+static Object getFrom(Object coll, Object key){
 	if(coll == null)
 		return null;
-	else if(coll instanceof ILookup)
-		return ((ILookup) coll).valAt(key);
 	else if(coll instanceof Map) {
 		Map m = (Map) coll;
 		return m.get(key);
@@ -636,10 +627,14 @@ static public Object get(Object coll, Object key){
 }
 
 static public Object get(Object coll, Object key, Object notFound){
+	if(coll instanceof ILookup)
+		return ((ILookup) coll).valAt(key, notFound);
+	return getFrom(coll, key, notFound);
+}
+
+static Object getFrom(Object coll, Object key, Object notFound){
 	if(coll == null)
 		return notFound;
-	else if(coll instanceof ILookup)
-		return ((ILookup) coll).valAt(key, notFound);
 	else if(coll instanceof Map) {
 		Map m = (Map) coll;
 		if(m.containsKey(key))
@@ -721,12 +716,16 @@ static public Object dissoc(Object coll, Object key) throws Exception{
 static public Object nth(Object coll, int n){
 	if(coll instanceof Indexed)
 		return ((Indexed) coll).nth(n);
+	return nthFrom(Util.ret1(coll, coll = null), n);
+}
+
+static Object nthFrom(Object coll, int n){
 	if(coll == null)
 		return null;
-	else if(coll instanceof String)
-		return Character.valueOf(((String) coll).charAt(n));
+	else if(coll instanceof CharSequence)
+		return Character.valueOf(((CharSequence) coll).charAt(n));
 	else if(coll.getClass().isArray())
-		return Reflector.prepRet(Array.get(coll, n));
+		return Reflector.prepRet(coll.getClass().getComponentType(),Array.get(coll, n));
 	else if(coll instanceof RandomAccess)
 		return ((List) coll).get(n);
 	else if(coll instanceof Matcher)
@@ -758,24 +757,26 @@ static public Object nth(Object coll, int n){
 static public Object nth(Object coll, int n, Object notFound){
 	if(coll instanceof Indexed) {
 		Indexed v = (Indexed) coll;
-		if(n >= 0 && n < v.count())
-			return v.nth(n);
-		return notFound;
+			return v.nth(n, notFound);
 	}
-	else if(coll == null)
+	return nthFrom(coll, n, notFound);
+}
+
+static Object nthFrom(Object coll, int n, Object notFound){
+	if(coll == null)
 		return notFound;
 	else if(n < 0)
 		return notFound;
 
-	else if(coll instanceof String) {
-		String s = (String) coll;
+	else if(coll instanceof CharSequence) {
+		CharSequence s = (CharSequence) coll;
 		if(n < s.length())
 			return Character.valueOf(s.charAt(n));
 		return notFound;
 	}
 	else if(coll.getClass().isArray()) {
 		if(n < Array.getLength(coll))
-			return Reflector.prepRet(Array.get(coll, n));
+			return Reflector.prepRet(coll.getClass().getComponentType(),Array.get(coll, n));
 		return notFound;
 	}
 	else if(coll instanceof RandomAccess) {
@@ -877,7 +878,12 @@ static public Number box(double x){
 static public char charCast(Object x){
 	if(x instanceof Character)
 		return ((Character) x).charValue();
-	return (char) ((Number) x).intValue();
+
+	long n = ((Number) x).longValue();
+	if(n < Character.MIN_VALUE || n > Character.MAX_VALUE)
+		throw new IllegalArgumentException("Value out of range for char: " + x);
+
+	return (char) n;
 }
 
 static public boolean booleanCast(Object x){
@@ -886,17 +892,38 @@ static public boolean booleanCast(Object x){
 	return x != null;
 }
 
+static public boolean booleanCast(boolean x){
+	return x;
+}
+
 static public byte byteCast(Object x){
-	return ((Number) x).byteValue();
+	if(x instanceof Byte)
+		return ((Byte) x).byteValue();
+	long n = longCast(x);
+	if(n < Byte.MIN_VALUE || n > Byte.MAX_VALUE)
+		throw new IllegalArgumentException("Value out of range for byte: " + x);
+
+	return (byte) n;
 }
 
 static public short shortCast(Object x){
-	return ((Number) x).shortValue();
+	if(x instanceof Short)
+		return ((Short) x).shortValue();
+	long n = longCast(x);
+	if(n < Short.MIN_VALUE || n > Short.MAX_VALUE)
+		throw new IllegalArgumentException("Value out of range for short: " + x);
+
+	return (short) n;
 }
 
 static public int intCast(Object x){
+	if(x instanceof Integer)
+		return ((Integer)x).intValue();
 	if(x instanceof Number)
-		return ((Number) x).intValue();
+		{
+		long n = longCast(x);
+		return intCast(n);
+		}
 	return ((Character) x).charValue();
 }
 
@@ -917,18 +944,43 @@ static public int intCast(int x){
 }
 
 static public int intCast(float x){
+	if(x < Integer.MIN_VALUE || x > Integer.MAX_VALUE)
+		throw new IllegalArgumentException("Value out of range for int: " + x);
 	return (int) x;
 }
 
 static public int intCast(long x){
-	return (int) x;
+	int i = (int) x;
+	if(i != x)
+		throw new IllegalArgumentException("Value out of range for int: " + x);
+	return i;
 }
 
 static public int intCast(double x){
+	if(x < Integer.MIN_VALUE || x > Integer.MAX_VALUE)
+		throw new IllegalArgumentException("Value out of range for int: " + x);
 	return (int) x;
 }
 
 static public long longCast(Object x){
+	if(x instanceof Integer || x instanceof Long)
+		return ((Number) x).longValue();
+	else if (x instanceof BigInt)
+		{
+		BigInt bi = (BigInt) x;
+		if(bi.bipart == null)
+			return bi.lpart;
+		else
+			throw new IllegalArgumentException("Value out of range for long: " + x);
+		}
+	else if (x instanceof BigInteger)
+		{
+		BigInteger bi = (BigInteger) x;
+		if(bi.bitLength() < 64)
+			return bi.longValue();
+		else
+			throw new IllegalArgumentException("Value out of range for long: " + x);
+		}
 	return ((Number) x).longValue();
 }
 
@@ -937,6 +989,8 @@ static public long longCast(int x){
 }
 
 static public long longCast(float x){
+	if(x < Long.MIN_VALUE || x > Long.MAX_VALUE)
+		throw new IllegalArgumentException("Value out of range for long: " + x);
 	return (long) x;
 }
 
@@ -945,11 +999,21 @@ static public long longCast(long x){
 }
 
 static public long longCast(double x){
+	if(x < Long.MIN_VALUE || x > Long.MAX_VALUE)
+		throw new IllegalArgumentException("Value out of range for long: " + x);
 	return (long) x;
 }
 
 static public float floatCast(Object x){
-	return ((Number) x).floatValue();
+	if(x instanceof Float)
+		return ((Float) x).floatValue();
+
+	double n = ((Number) x).doubleValue();
+	if(n < -Float.MAX_VALUE || n > Float.MAX_VALUE)
+		throw new IllegalArgumentException("Value out of range for float: " + x);
+
+	return (float) n;
+
 }
 
 static public float floatCast(int x){
@@ -965,6 +1029,9 @@ static public float floatCast(long x){
 }
 
 static public float floatCast(double x){
+	if(x < -Float.MAX_VALUE || x > Float.MAX_VALUE)
+		throw new IllegalArgumentException("Value out of range for float: " + x);
+	
 	return (float) x;
 }
 
@@ -992,12 +1059,12 @@ static public IPersistentMap map(Object... init){
 	if(init == null)
 		return PersistentArrayMap.EMPTY;
 	else if(init.length <= PersistentArrayMap.HASHTABLE_THRESHOLD)
-		return new PersistentArrayMap(init);
-	return PersistentHashMap.create(init);
+		return PersistentArrayMap.createWithCheck(init);
+	return PersistentHashMap.createWithCheck(init);
 }
 
 static public IPersistentSet set(Object... init){
-	return PersistentHashSet.create(init);
+	return PersistentHashSet.createWithCheck(init);
 }
 
 static public IPersistentVector vector(Object... init){
@@ -1066,6 +1133,20 @@ static public ISeq arrayToList(Object[] a) throws Exception{
 	for(int i = a.length - 1; i >= 0; --i)
 		ret = (ISeq) cons(a[i], ret);
 	return ret;
+}
+
+static public Object[] object_array(Object sizeOrSeq){
+	if(sizeOrSeq instanceof Number)
+		return new Object[((Number) sizeOrSeq).intValue()];
+	else
+		{
+		ISeq s = RT.seq(sizeOrSeq);
+		int size = RT.count(s);
+		Object[] ret = new Object[size];
+		for(int i = 0; i < size && s != null; i++, s = s.next())
+			ret[i] = s.first();
+		return ret;
+		}
 }
 
 static public Object[] toArray(Object coll) throws Exception{
@@ -1341,9 +1422,21 @@ static public void print(Object x, Writer w) throws Exception{
 			w.write(x.toString());
 			w.write('M');
 		}
+		else if(x instanceof BigInt && readably) {
+			w.write(x.toString());
+			w.write('N');
+		}
+		else if(x instanceof BigInteger && readably) {
+			w.write(x.toString());
+			w.write("BIGINT");
+		}
 		else if(x instanceof Var) {
 			Var v = (Var) x;
 			w.write("#=(var " + v.ns.name + "/" + v.sym + ")");
+		}
+		else if(x instanceof Pattern) {
+			Pattern p = (Pattern) x;
+			w.write("#\"" + p.pattern() + "\"");
 		}
 		else w.write(x.toString());
 	}
@@ -1669,17 +1762,5 @@ static public Object[] aclone(Object[] xs){
 	return xs.clone();
 }
 
-static public Object aget(Object xs, int i){
-	return Reflector.prepRet(Array.get(xs, i));
-}
-
-static public Object aset(Object xs, int i, Object v){
-	Array.set(xs, i, v);
-	return v;
-}
-
-static public int alength(Object xs){
-	return Array.getLength(xs);
-}
 
 }

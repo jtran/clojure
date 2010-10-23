@@ -8,22 +8,10 @@
  *   You must not remove this notice, or any other, from this software.
  **/
 
-/* rich Dec 7, 2008 */
+/* rich Aug 4, 2010 */
 
 package clojure.lang;
 
-import java.util.Iterator;
-
-public class IteratorStream extends AFn{
-final Iterator iter;
-
-IteratorStream(Iterator iter){
-	this.iter = iter;
-}
-
-public Object invoke() throws Exception{
-	if(iter.hasNext())
-		return iter.next();
-	return RT.EOS;
-}
+//marker interface
+public interface MapEquivalence{
 }

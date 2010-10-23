@@ -43,8 +43,8 @@
   ; numbers equality across types (see tests below - NOT IMPLEMENTED YET)
 
   ; ratios
-  (is (= 1/2 0.5))
-  (is (= 1/1000 0.001))
+  (is (== 1/2 0.5))
+  (is (== 1/1000 0.001))
   (is (not= 2/3 0.6666666666666666))
 
   ; vectors equal other seqs by items equality
@@ -93,6 +93,7 @@
   ; struct-map vs. sorted-map, hash-map and array-map
   (are [x] (and (not= (class (struct equality-struct 1 2)) (class x))
                 (= (struct equality-struct 1 2) x))
+      (sorted-map-by compare :a 1 :b 2)
       (sorted-map :a 1 :b 2)
       (hash-map   :a 1 :b 2)
       (array-map  :a 1 :b 2))
@@ -100,6 +101,9 @@
   ; sorted-set vs. hash-set
   (is (not= (class (sorted-set 1)) (class (hash-set 1))))
   (are [x y] (= x y)
+      (sorted-set-by <) (hash-set)
+      (sorted-set-by < 1) (hash-set 1)
+      (sorted-set-by < 3 2 1) (hash-set 3 2 1)
       (sorted-set) (hash-set)
       (sorted-set 1) (hash-set 1)
       (sorted-set 3 2 1) (hash-set 3 2 1) ))
@@ -108,40 +112,45 @@
 ;; *** Collections ***
 
 (deftest test-count
-  (are [x y] (= x y)
-      (count nil) 0
+  (let [EMPTY clojure.lang.PersistentQueue/EMPTY]
+    (are [x y] (= (count x) y)
+         EMPTY 0 
+         (into EMPTY [:a :b]) 2
+         (-> (into EMPTY [:a :b]) pop pop) 0
+         
+         nil 0
 
-      (count ()) 0
-      (count '(1)) 1
-      (count '(1 2 3)) 3
+         () 0
+         '(1) 1
+         '(1 2 3) 3
 
-      (count []) 0
-      (count [1]) 1
-      (count [1 2 3]) 3
+         [] 0
+         [1] 1
+         [1 2 3] 3
 
-      (count #{}) 0
-      (count #{1}) 1
-      (count #{1 2 3}) 3
+         #{} 0
+         #{1} 1
+         #{1 2 3} 3
 
-      (count {}) 0
-      (count {:a 1}) 1
-      (count {:a 1 :b 2 :c 3}) 3
+         {} 0
+         {:a 1} 1
+         {:a 1 :b 2 :c 3} 3
 
-      (count "") 0
-      (count "a") 1
-      (count "abc") 3
+         "" 0
+         "a" 1
+         "abc" 3
 
-      (count (into-array [])) 0
-      (count (into-array [1])) 1
-      (count (into-array [1 2 3])) 3
+         (into-array []) 0
+         (into-array [1]) 1
+         (into-array [1 2 3]) 3
 
-      (count (java.util.ArrayList. [])) 0
-      (count (java.util.ArrayList. [1])) 1
-      (count (java.util.ArrayList. [1 2 3])) 3
+         (java.util.ArrayList. []) 0
+         (java.util.ArrayList. [1]) 1
+         (java.util.ArrayList. [1 2 3]) 3
 
-      (count (java.util.HashMap. {})) 0
-      (count (java.util.HashMap. {:a 1})) 1
-      (count (java.util.HashMap. {:a 1 :b 2 :c 3})) 3 )
+         (java.util.HashMap. {}) 0
+         (java.util.HashMap. {:a 1}) 1
+         (java.util.HashMap. {:a 1 :b 2 :c 3}) 3 ))
 
   ; different types
   (are [x]  (= (count [x]) 1)
@@ -513,6 +522,35 @@
       {} {:a 1 :b 2}
       #{} #{1 2} ))
 
+(deftest test-get
+  (let [m {:a 1, :b 2, :c {:d 3, :e 4}, :f nil, :g false, nil {:h 5}}]
+    (is (thrown? IllegalArgumentException (get-in {:a 1} 5)))
+    (are [x y] (= x y)
+         (get m :a) 1
+         (get m :e) nil
+         (get m :e 0) 0
+         (get m :b 0) 2
+         (get m :f 0) nil
+
+         (get-in m [:c :e]) 4
+         (get-in m '(:c :e)) 4
+         (get-in m [:c :x]) nil
+         (get-in m [:f]) nil
+         (get-in m [:g]) false
+         (get-in m [:h]) nil
+         (get-in m []) m
+         (get-in m nil) m
+
+         (get-in m [:c :e] 0) 4
+         (get-in m '(:c :e) 0) 4
+         (get-in m [:c :x] 0) 0
+         (get-in m [:b] 0) 2
+         (get-in m [:f] 0) nil
+         (get-in m [:g] 0) false
+         (get-in m [:h] 0) 0
+         (get-in m [:x :y] {:y 1}) {:y 1}
+         (get-in m [] 0) m
+         (get-in m nil 0) m)))
 
 ;; *** Sets ***
 
@@ -530,23 +568,6 @@
       (hash-set 1 2) (hash-set 2 1)
       (hash-set 3 1 2) (hash-set 1 2 3) )
 
-  ; equal and unique
-  (are [x] (and (= (hash-set x)   #{x})
-                (= (hash-set x x) #{x}))
-      nil
-      false true
-      0 42
-      0.0 3.14
-      2/3
-      0M 1M
-      \c
-      "" "abc"
-      'sym
-      :kw
-      () '(1 2)
-      [] [1 2]
-      {} {:a 1 :b 2}
-      #{} #{1 2} )
 
   (are [x y] (= x y)
       ; equal classes
@@ -632,6 +653,59 @@
       (sorted-set #{}) #{#{}} ))
 
 
+(deftest test-sorted-set-by
+  ; only compatible types can be used
+  ; NB: not a ClassCastException, but a RuntimeException is thrown,
+  ; requires discussion on whether this should be symmetric with test-sorted-set
+  (is (thrown? Exception (sorted-set-by < 1 "a")))
+  (is (thrown? Exception (sorted-set-by < '(1 2) [3 4])))
+
+  ; creates set?
+  (are [x] (set? x)
+       (sorted-set-by <)
+       (sorted-set-by < 1 2) )
+
+  ; equal and unique
+  (are [x] (and (= (sorted-set-by compare x) #{x})
+                (= (sorted-set-by compare x x) (sorted-set-by compare x)))
+      nil
+      false true
+      0 42
+      0.0 3.14
+      2/3
+      0M 1M
+      \c
+      "" "abc"
+      'sym
+      :kw
+      ()  ; '(1 2)
+      [] [1 2]
+      {}  ; {:a 1 :b 2}
+      #{} ; #{1 2}
+  )
+  ; cannot be cast to java.lang.Comparable
+  ; NB: not a ClassCastException, but a RuntimeException is thrown,
+  ; requires discussion on whether this should be symmetric with test-sorted-set
+  (is (thrown? Exception (sorted-set-by compare '(1 2) '(1 2))))
+  (is (thrown? Exception (sorted-set-by compare {:a 1 :b 2} {:a 1 :b 2})))
+  (is (thrown? Exception (sorted-set-by compare #{1 2} #{1 2})))
+
+  (are [x y] (= x y)
+      ; generating
+      (sorted-set-by >) #{}
+      (sorted-set-by > 1) #{1}
+      (sorted-set-by > 1 2) #{1 2}
+
+      ; sorting
+      (seq (sorted-set-by < 5 4 3 2 1)) '(1 2 3 4 5)
+
+      ; special cases
+      (sorted-set-by compare nil) #{nil}
+      (sorted-set-by compare 1 nil) #{nil 1}
+      (sorted-set-by compare nil 2) #{nil 2}
+      (sorted-set-by compare #{}) #{#{}} ))
+
+
 (deftest test-set
   ; set?
   (are [x] (set? (set x))
@@ -688,6 +762,7 @@
 
   ; identity
   (are [x] (= (disj x) x)
+      nil
       #{}
       #{1 2 3}
       ; different data types
@@ -713,6 +788,9 @@
       (sorted-set 1 2) )
 
   (are [x y] (= x y)
+      (disj nil :a) nil
+      (disj nil :a :b) nil
+
       (disj #{} :a) #{}
       (disj #{} :a :b) #{}
 
@@ -733,4 +811,25 @@
       (disj #{#{}} #{}) #{}
       (disj #{#{nil}} #{nil}) #{} ))
 
+
+;; *** Queues ***
+
+(deftest test-queues
+  (let [EMPTY clojure.lang.PersistentQueue/EMPTY]
+    (are [x y] (= x y)
+      EMPTY EMPTY
+      (into EMPTY (range 50)) (into EMPTY (range 50))
+      (range 5) (into EMPTY (range 5))
+      (range 1 6) (-> EMPTY
+                    (into (range 6))
+                    pop))
+    (are [x y] (not= x y)
+      (range 5) (into EMPTY (range 6))
+      (range 6) (into EMPTY (range 5))
+      (range 0 6) (-> EMPTY
+                    (into (range 6))
+                    pop)
+      (range 1 6) (-> EMPTY
+                    (into (range 7))
+                    pop))))
 

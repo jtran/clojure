@@ -12,17 +12,12 @@
 
 package clojure.lang;
 
+import java.io.Serializable;
 import java.util.Comparator;
 
-public abstract class AFunction extends AFn implements Comparator, Fn{
+public abstract class AFunction extends AFn implements IObj, Comparator, Fn, Serializable {
 
-public AFunction(IPersistentMap meta){
-	super(meta);
-}
-
-public AFunction(){
-	super();
-}
+public volatile MethodImplCache __methodImplCache;
 
 public int compare(Object o1, Object o2){
 	try
